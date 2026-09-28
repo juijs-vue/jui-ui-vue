@@ -1,5 +1,6 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onBeforeUnmount, nextTick } from "vue"
+import type { CSSProperties } from "vue"
 
 // 원본(autocomplete.js)은 ui.dropdown(키보드 내비게이션 + body에 append하는 절대좌표 포지셔닝)에
 // 의존했다. Vue 버전은 Tab의 오버플로우 메뉴와 같은 방식으로 — 루트를 position:relative로 두고
@@ -7,51 +8,46 @@ import { ref, computed, watch, onBeforeUnmount, nextTick } from "vue"
 // input 하나로 단순화됐으므로 필요 없다 — NumberChecker처럼 이 컴포넌트가 곧 input 한 개다.
 // class/style은 기본대로 루트(.ac)에 붙는다 — 원본의 ".ac.group" 래퍼처럼 label과 함께 묶을 때
 // 필요해서다. input 자체의 너비 등은 따로 inputStyle prop으로 받는다.
-const props = defineProps({
-    modelValue: {
-        type: String,
-        default: ""
-    },
-    words: {
-        type: Array,
-        default: () => []
-    },
-    showAll: {
-        // focus 시 입력값이 비어있으면 전체 목록을 보여준다
-        type: Boolean,
-        default: false
-    },
-    height: {
-        // 드롭다운 최대 높이(px). "auto"면 제한 없음
-        type: [String, Number],
-        default: "auto"
-    },
-    inputStyle: {
-        // input 자체에 줄 style(너비 등) — style/class는 기본적으로 루트(.ac)에 붙기 때문에 별도로 받는다
-        type: [String, Object, Array],
-        default: undefined
-    },
-    size: {
-        // input.less의 .input.<size> 높이 변형과 맞춤 — 원본은 prefix 아이콘(label.small 등)과
-        // 같은 사이즈를 input에도 줘서 높이를 맞췄는데, 이 prop이 없어서 input이 항상
-        // .input.normal(28px)로 렌더링되고 label.small(24px) 프리픽스와 높이가 어긋났었다.
-        type: String,
-        default: "normal" // 'mini' | 'small' | 'normal' | 'large'
+const props = withDefaults(
+    defineProps<{
+        modelValue?: string
+        words?: string[]
+        /** focus 시 입력값이 비어있으면 전체 목록을 보여준다. */
+        showAll?: boolean
+        /** 드롭다운 최대 높이(px). "auto"면 제한 없음. */
+        height?: string | number
+        /** input 자체에 줄 style(너비 등) - style/class는 기본적으로 루트(.ac)에 붙기 때문에 별도로 받는다. */
+        inputStyle?: string | CSSProperties | CSSProperties[]
+        /** input.less의 .input.<size> 높이 변형과 맞춤 - 원본은 prefix 아이콘(label.small 등)과
+         * 같은 사이즈를 input에도 줘서 높이를 맞췄는데, 이 prop이 없어서 input이 항상
+         * .input.normal(28px)로 렌더링되고 label.small(24px) 프리픽스와 높이가 어긋났었다. */
+        size?: "mini" | "small" | "normal" | "large"
+    }>(),
+    {
+        modelValue: "",
+        words: () => [],
+        showAll: false,
+        height: "auto",
+        inputStyle: undefined,
+        size: "normal"
     }
-})
+)
 
-const emit = defineEmits(["update:modelValue", "change"])
+const emit = defineEmits<{
+    "update:modelValue": [value: string]
+    change: [word: string, e: MouseEvent | KeyboardEvent]
+}>()
 
 const localWords = ref(props.words.slice())
 const open = ref(false)
 const highlighted = ref(-1)
-let blurTimer = null
+let blurTimer: ReturnType<typeof setTimeout> | null = null
 
 // 원본은 드롭다운 생성 시 width: $(self.root).outerWidth()로 폭을 맞췄다(dropdown이 body에
 // append되어 레이아웃 흐름 밖에 있었기 때문). 여기서도 열릴 때마다 루트(.ac) 폭을 재서 맞춘다 —
 // 안 하면 ul이 float:left라 내용물(가장 긴 단어) 폭으로만 줄어든다.
-const rootRef = ref(null)
-const dropdownWidth = ref(null)
+const rootRef = ref<HTMLElement | null>(null)
+const dropdownWidth = ref<number | null>(null)
 watch(open, async (v) => {
     if (!v) return
     await nextTick()
@@ -77,8 +73,8 @@ const visibleList = computed(() => {
     return localWords.value.filter((o) => o.toLowerCase().includes(w))
 })
 
-function onInput(e) {
-    internalValue.value = e.target.value
+function onInput(e: Event) {
+    internalValue.value = (e.target as HTMLInputElement).value
     emit("update:modelValue", internalValue.value)
     highlighted.value = -1
 }
@@ -88,7 +84,7 @@ function syncOpenFromList() {
     open.value = visibleList.value.length > 0
 }
 
-function onKeyup(e) {
+function onKeyup(e: KeyboardEvent) {
     if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "Enter") return
     syncOpenFromList()
 }
@@ -106,7 +102,7 @@ function onBlur() {
     }, 150)
 }
 
-function selectWord(word, e) {
+function selectWord(word: string, e: MouseEvent | KeyboardEvent) {
     internalValue.value = word
     emit("update:modelValue", word)
     emit("change", word, e)
@@ -114,7 +110,7 @@ function selectWord(word, e) {
     highlighted.value = -1
 }
 
-function onKeydown(e) {
+function onKeydown(e: KeyboardEvent) {
     if (!open.value || visibleList.value.length === 0) return
 
     if (e.key === "ArrowDown") {
@@ -133,10 +129,12 @@ function onKeydown(e) {
     }
 }
 
-onBeforeUnmount(() => clearTimeout(blurTimer))
+onBeforeUnmount(() => {
+    if (blurTimer != null) clearTimeout(blurTimer)
+})
 
 /** 원본 update(newWords) — 자동완성 대상 단어 목록을 교체 */
-function update(newWords) {
+function update(newWords: string[]) {
     localWords.value = newWords
 }
 

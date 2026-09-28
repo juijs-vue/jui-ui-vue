@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // 원본(property.js)은 렌더러(renderer.text/select/number/range/checkbox/switch/date/
 // color/colors/property/html/textarea)마다 마크업을 직접 jQuery로 조립했고, switch/
 // datepicker/colorpicker 타입은 jui.create()로 각 컴포넌트를 재활용했다. Vue 버전도 동일한
@@ -9,28 +9,57 @@
 // while로 순회하며 show/hide 했다 — Vue 버전은 "각 행이 속한 그룹"을 미리 계산해두고
 // collapsedGroups(Set)에 따라 v-show로 표시 여부만 반응형으로 바꾼다.
 import { reactive, ref, computed, nextTick } from "vue"
+import type { Ref } from "vue"
 import Switch from "./Switch.vue"
 import Datepicker from "./Datepicker.vue"
 import Colorpicker from "./Colorpicker.vue"
 
-const props = defineProps({
-    items: { type: Array, default: () => [] }
-})
-const emit = defineEmits(["change", "load-items"])
+// property.js 렌더러마다 실제로 쓰는 필드가 제각각이라(type에 따라 value의 실제 shape도
+// string/number/boolean/string[]로 갈린다) 의미 있는 필드만 이름 붙이고, 나머지는 인덱스
+// 시그니처로 열어둔다 - jui-grid-vue의 GridColumn과 달리 이 컴포넌트는 원래 "임의의 폼
+// 스키마"를 그리는 용도라 완전히 닫힌 타입으로 만드는 게 오히려 원래 유연성을 해친다.
+interface PropertyItem {
+    type?: "group" | "text" | "textarea" | "html" | "number" | "select" | "range" | "checkbox" | "switch" | "date" | "color" | "colors" | "property"
+    key?: string
+    title?: string
+    value?: unknown
+    readonly?: boolean
+    height?: number
+    max?: number
+    min?: number
+    step?: number
+    postfix?: string
+    /** select 타입일 때는 (string | {text?, value})[], property 타입일 때는 중첩 PropertyItem[]. */
+    items?: unknown[]
+    vertical?: boolean
+    description?: string
+    titleFormat?: string
+    format?: string
+    [key: string]: unknown
+}
+interface PropertyExposed {
+    getAllValue(): Record<string, unknown>
+}
 
-function debounce(fn, wait) {
-    let timer
-    return (...args) => {
+const props = withDefaults(defineProps<{ items?: PropertyItem[] }>(), { items: () => [] })
+const emit = defineEmits<{
+    change: [item: PropertyItem, newValue: unknown, oldValue: unknown]
+    "load-items": []
+}>()
+
+function debounce<A extends unknown[]>(fn: (...args: A) => void, wait: number) {
+    let timer: ReturnType<typeof setTimeout>
+    return (...args: A) => {
         clearTimeout(timer)
         timer = setTimeout(() => fn(...args), wait)
     }
 }
 
-const localItems = reactive([])
-const collapsedGroups = ref(new Set())
-const nestedPropertyRefs = ref({}) // index -> 중첩 Property 인스턴스(nested의 getAllValue 조회용)
+const localItems = reactive<PropertyItem[]>([])
+const collapsedGroups = ref<Set<number>>(new Set())
+const nestedPropertyRefs = ref<Record<number, PropertyExposed | null>>({}) // index -> 중첩 Property 인스턴스(nested의 getAllValue 조회용)
 
-function loadItems(newItems) {
+function loadItems(newItems?: PropertyItem[]) {
     localItems.splice(
         0,
         localItems.length,
@@ -44,12 +73,12 @@ function loadItems(newItems) {
 }
 loadItems(props.items)
 
-function addItem(item) {
+function addItem(item: PropertyItem | PropertyItem[]) {
     const arr = Array.isArray(item) ? item : [item]
     localItems.push(...arr.map((it) => ({ ...it })))
 }
 
-function removeItem(item) {
+function removeItem(item: PropertyItem) {
     const idx = localItems.findIndex((it) => it.key === item.key || it.title === item.title)
     if (idx >= 0) localItems.splice(idx, 1)
 }
@@ -57,7 +86,7 @@ function removeItem(item) {
 // 각 행(row)이 속한 그룹의 인덱스(그 그룹이 접히면 이 행도 숨는다) — 그룹 자신과, 어떤
 // 그룹보다도 앞에 있는 행은 항상 보인다.
 const rowGroupIndex = computed(() => {
-    let current = null
+    let current: number | null = null
     return localItems.map((item, i) => {
         if (item.type === "group") {
             current = i
@@ -66,7 +95,7 @@ const rowGroupIndex = computed(() => {
         return current
     })
 })
-function isVisible(i) {
+function isVisible(i: number) {
     const g = rowGroupIndex.value[i]
     return g === null || !collapsedGroups.value.has(g)
 }
@@ -78,30 +107,30 @@ function getGroupList() {
         .map((x) => ({ name: x.item.title, id: x.index }))
 }
 
-function collapsed(index) {
+function collapsed(index: number) {
     const next = new Set(collapsedGroups.value)
     next.add(index)
     collapsedGroups.value = next
 }
-function expanded(index) {
+function expanded(index: number) {
     const next = new Set(collapsedGroups.value)
     next.delete(index)
     collapsedGroups.value = next
 }
-function toggleGroup(index) {
+function toggleGroup(index: number) {
     if (collapsedGroups.value.has(index)) expanded(index)
     else collapsed(index)
 }
 
-function findIndexByKey(key) {
+function findIndexByKey(key: string) {
     return localItems.findIndex((it) => it.key === key)
 }
-function getItem(keyOrIndex) {
+function getItem(keyOrIndex: string | number) {
     if (typeof keyOrIndex === "number") return localItems[keyOrIndex]
     return localItems[findIndexByKey(keyOrIndex)]
 }
 
-function refreshValue(index, newValue) {
+function refreshValue(index: number, newValue: unknown) {
     const item = localItems[index]
     if (!item) return
     const oldValue = item.value
@@ -109,81 +138,85 @@ function refreshValue(index, newValue) {
     emit("change", item, newValue, oldValue)
 }
 
-function updateValue(key, value) {
+function updateValue(key: string, value: unknown) {
     const index = findIndexByKey(key)
     if (index < 0) return
     refreshValue(index, value)
 }
 
-function getValue(key) {
+function getValue(key?: string) {
     if (key) return getItem(key)?.value
     return getAllValue()
 }
-function getAllValue() {
-    const result = {}
+function getAllValue(): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
     localItems.forEach((item) => {
-        if (item.type !== "group") result[item.key] = item.value
+        if (item.type !== "group" && item.key) result[item.key] = item.value
     })
     return result
 }
-function setValue(obj) {
+function setValue(obj?: Record<string, unknown>) {
     obj = obj || {}
-    Object.keys(obj).forEach((key) => updateValue(key, obj[key]))
+    Object.keys(obj).forEach((key) => updateValue(key, (obj as Record<string, unknown>)[key]))
 }
-function initValue(obj) {
+function initValue(obj?: Record<string, unknown>) {
     localItems.forEach((item) => (item.value = ""))
     if (obj) setValue(obj)
 }
 
-const debouncedText = debounce((index, value) => refreshValue(index, value), 250)
-const debouncedCheckbox = debounce((index, value) => refreshValue(index, value), 100)
+const debouncedText = debounce((index: number, value: unknown) => refreshValue(index, value), 250)
+const debouncedCheckbox = debounce((index: number, value: unknown) => refreshValue(index, value), 100)
 
-function str2array(value, splitter = ",") {
+function str2array(value: unknown, splitter = ","): unknown {
     return typeof value === "string" ? value.split(splitter) : value
 }
 
-function onTextInput(index, e) {
+function onTextInput(index: number, e: Event) {
     const item = localItems[index]
-    const value = Array.isArray(item.value) ? str2array(e.target.value) : e.target.value
+    const target = e.target as HTMLInputElement | HTMLTextAreaElement
+    const value = Array.isArray(item.value) ? str2array(target.value) : target.value
     debouncedText(index, value)
 }
-function onHtmlInput(index, e) {
-    debouncedText(index, e.target.innerHTML)
+function onHtmlInput(index: number, e: Event) {
+    debouncedText(index, (e.target as HTMLElement).innerHTML)
 }
-function onNumberInput(index, e) {
-    debouncedText(index, +e.target.value)
+function onNumberInput(index: number, e: Event) {
+    debouncedText(index, +(e.target as HTMLInputElement).value)
 }
-function onSelectChange(index, e) {
+function onSelectChange(index: number, e: Event) {
     const item = localItems[index]
-    const value = Array.isArray(item.value) ? str2array(e.target.value) : e.target.value
+    const target = e.target as HTMLSelectElement
+    const value = Array.isArray(item.value) ? str2array(target.value) : target.value
     refreshValue(index, value)
 }
-function selectOptions(item) {
-    return (item.items || []).map((it) => (typeof it === "string" ? { text: it, value: it } : it))
+function selectOptions(item: PropertyItem): { text?: string; value: string | number }[] {
+    return ((item.items as (string | { text?: string; value: string | number })[]) || []).map((it) =>
+        typeof it === "string" ? { text: it, value: it } : it
+    )
 }
-function toggleCheckbox(index) {
+function toggleCheckbox(index: number) {
     const item = localItems[index]
     const next = !(item.value === true || item.value === "true")
     debouncedCheckbox(index, next)
 }
 
 // ---- range ----
-function rangeValue(item) {
+function rangeValue(item: PropertyItem) {
     const raw = item.value
     const postfix = item.postfix || ""
     const num = typeof raw === "string" && postfix ? raw.replace(postfix, "") : raw
-    return +num || 0
+    return +(num as string | number) || 0
 }
 const RANGE_INPUT_WIDTH = 100 // px — 원본이 인라인으로 고정한 input[type=range]의 너비
-function rangeProgressPct(item) {
+function rangeProgressPct(item: PropertyItem) {
     const min = item.min || 0,
         max = item.max || 100
     // 원본 공식 그대로: value/(max-min) * inputWidth (min을 빼지 않는다 — min!=0일 때도 동일)
     return (rangeValue(item) / (max - min)) * RANGE_INPUT_WIDTH
 }
-function onRangeInput(index, e) {
+function onRangeInput(index: number, e: Event) {
     const item = localItems[index]
-    const value = +e.target.value
+    const value = +(e.target as HTMLInputElement).value
     item.value = value + (item.postfix || "") // 즉시 시각 반영(progress bar/텍스트)
     debouncedText(index, value + (item.postfix || ""))
 }
@@ -200,15 +233,15 @@ function onRangeInput(index, e) {
 //          (넘치면 root.outerWidth() - popup.outerWidth() - 20 로 clamp)
 //   top  = trigger.offset().top  - root.offset().top + OFFSET
 //          (넘치면 root.outerHeight() - popup.outerHeight() - 20 로 clamp)
-const rootEl = ref(null)
+const rootEl = ref<HTMLElement | null>(null)
 const popupPos = ref({ top: 0, left: 0 })
 const popupReady = ref(false) // 위치 계산 전 프레임에 (0,0)으로 잠깐 보이는 걸 막는 플래그
-const datepickerEl = ref(null) // Datepicker 컴포넌트 인스턴스(.$el로 실제 DOM 취득)
-const colorpickerEl = ref(null)
-function unwrapEl(refValue) {
-    return refValue?.$el ?? refValue ?? null
+const datepickerEl = ref<InstanceType<typeof Datepicker> | null>(null) // Datepicker 컴포넌트 인스턴스(.$el로 실제 DOM 취득)
+const colorpickerEl = ref<InstanceType<typeof Colorpicker> | null>(null)
+function unwrapEl(refValue: { $el?: unknown } | null): HTMLElement | null {
+    return (refValue?.$el as HTMLElement | undefined) ?? null
 }
-function positionPopupAt(triggerEl, popupRef, topOffset) {
+function positionPopupAt(triggerEl: Element | null, popupRef: Ref<{ $el?: unknown } | null>, topOffset: number) {
     popupReady.value = false
     nextTick(() => {
         const popupEl = unwrapEl(popupRef.value)
@@ -231,21 +264,21 @@ function positionPopupAt(triggerEl, popupRef, topOffset) {
 }
 
 // ---- date popup ----
-const openDatePopup = ref(null) // 열려있는 date 편집기의 index
-function toggleDate(index, e) {
+const openDatePopup = ref<number | null>(null) // 열려있는 date 편집기의 index
+function toggleDate(index: number, e: MouseEvent) {
     const next = openDatePopup.value === index ? null : index
     openDatePopup.value = next
-    if (next !== null) positionPopupAt(e.currentTarget.closest(".datepicker-input"), datepickerEl, 80)
+    if (next !== null) positionPopupAt((e.currentTarget as HTMLElement).closest(".datepicker-input"), datepickerEl, 80)
 }
-function onDateSelect(index, formatted) {
+function onDateSelect(index: number, formatted: string) {
     refreshValue(index, formatted)
     openDatePopup.value = null
 }
 const openDateItem = computed(() => (openDatePopup.value !== null ? localItems[openDatePopup.value] : null))
 
 // ---- color / colors popup ----
-const openColorPopup = ref(null) // "index" 또는 "index:subIndex"(colors 타입)
-function toggleColor(key, e) {
+const openColorPopup = ref<string | null>(null) // "index" 또는 "index:subIndex"(colors 타입)
+function toggleColor(key: string, e: MouseEvent) {
     if (openColorPopup.value !== null && openColorPopup.value !== key) {
         // 원본: 이미 열린 colorpicker가 있으면(j.next('.colorpicker')) 위치는 그대로 두고
         // setColor()로 편집 대상 색상만 바꾼다 - 새로 만들거나 재배치하지 않는다.
@@ -254,7 +287,7 @@ function toggleColor(key, e) {
     }
     const next = openColorPopup.value === key ? null : key
     openColorPopup.value = next
-    if (next !== null) positionPopupAt(e.currentTarget.closest("a.color-input"), colorpickerEl, 50)
+    if (next !== null) positionPopupAt((e.currentTarget as HTMLElement).closest("a.color-input"), colorpickerEl, 50)
 }
 const openColorInfo = computed(() => {
     if (openColorPopup.value === null) return null
@@ -262,28 +295,28 @@ const openColorInfo = computed(() => {
     const index = +idxStr
     const item = localItems[index]
     if (!item) return null
-    if (subStr !== undefined) return { index, subIndex: +subStr, value: item.value?.[+subStr] || "#ffffff" }
-    return { index, value: item.value || "#ffffff" }
+    if (subStr !== undefined) return { index, subIndex: +subStr, value: (item.value as string[] | undefined)?.[+subStr] || "#ffffff" }
+    return { index, subIndex: undefined as number | undefined, value: (item.value as string | undefined) || "#ffffff" }
 })
-function onColorChange(index, hex) {
+function onColorChange(index: number, hex: string) {
     refreshValue(index, hex)
 }
-function onColorsChange(index, subIndex, hex) {
+function onColorsChange(index: number, subIndex: number, hex: string) {
     const item = localItems[index]
-    const colors = [...item.value]
+    const colors = [...(item.value as string[])]
     colors[subIndex] = hex
     refreshValue(index, colors)
 }
-function clearColor(index) {
+function clearColor(index: number) {
     refreshValue(index, "")
 }
 
 // 원본 getDefaultValue() — 현재 값이 아니라 props.items에 처음 주어진 초기값 스냅샷을
 // 돌려준다(예: "변경사항이 있는지" 비교, "기본값으로 되돌리기" 용도).
-function getDefaultValue() {
-    const result = {}
+function getDefaultValue(): Record<string, unknown> {
+    const result: Record<string, unknown> = {}
     props.items.forEach((it) => {
-        if (it.type !== "group" && it.value !== undefined) result[it.key] = it.value
+        if (it.type !== "group" && it.value !== undefined && it.key) result[it.key] = it.value
     })
     return result
 }
@@ -335,7 +368,7 @@ defineExpose({
                                 :style="{ height: (item.height || 100) + 'px' }"
                                 placeholder="Type here"
                                 :readonly="item.readonly"
-                                :value="item.value"
+                                :value="item.value as string"
                                 @input="onTextInput(index, $event)"
                             ></textarea>
 
@@ -405,14 +438,14 @@ defineExpose({
 
                             <div v-else-if="item.type === 'color'" style="position: relative;">
                                 <a class="color-input" @click.stop="toggleColor(`${index}`, $event)">
-                                    <span :style="{ backgroundColor: item.value || 'transparent' }">&nbsp;</span>
-                                    <span>{{ item.value || "" }}</span>
+                                    <span :style="{ backgroundColor: (item.value as string) || 'transparent' }">&nbsp;</span>
+                                    <span>{{ (item.value as string) || "" }}</span>
                                     <span class="none-color" title="Delete a color" @click.stop="clearColor(index)"><i class="icon-more"></i></span>
                                 </a>
                             </div>
 
                             <div v-else-if="item.type === 'colors'">
-                                <span v-for="(c, ci) in item.value" :key="ci" style="position: relative; display: inline-block;">
+                                <span v-for="(c, ci) in item.value as string[]" :key="ci" style="position: relative; display: inline-block;">
                                     <a class="color-input" @click.stop="toggleColor(`${index}:${ci}`, $event)">
                                         <span :style="{ backgroundColor: c || 'transparent' }">&nbsp;</span>
                                         <span>{{ c || "" }}</span>
@@ -425,8 +458,8 @@ defineExpose({
 
                             <div v-else-if="item.type === 'property'" class="property inner">
                                 <Property
-                                    :ref="(el) => (nestedPropertyRefs[index] = el)"
-                                    :items="item.items"
+                                    :ref="(el) => (nestedPropertyRefs[index] = el as unknown as PropertyExposed | null)"
+                                    :items="item.items as PropertyItem[]"
                                     @change="() => refreshValue(index, nestedPropertyRefs[index]?.getAllValue())"
                                 />
                             </div>
@@ -455,7 +488,7 @@ defineExpose({
                 :style="{ position: 'absolute', zIndex: 100000, top: popupPos.top + 'px', left: popupPos.left + 'px', visibility: popupReady ? 'visible' : 'hidden' }"
                 :title-format="openDateItem.titleFormat || 'yyyy. MM'"
                 :format="openDateItem.format || 'yyyy/MM/dd'"
-                @select="(formatted) => onDateSelect(openDatePopup, formatted)"
+                @select="(formatted) => onDateSelect(openDatePopup!, formatted)"
             />
 
             <Colorpicker
@@ -463,7 +496,7 @@ defineExpose({
                 ref="colorpickerEl"
                 :style="{ position: 'absolute', zIndex: 100000, top: popupPos.top + 'px', left: popupPos.left + 'px', visibility: popupReady ? 'visible' : 'hidden' }"
                 :model-value="openColorInfo.value"
-                @change="(hex) => (openColorInfo.subIndex !== undefined ? onColorsChange(openColorInfo.index, openColorInfo.subIndex, hex) : onColorChange(openColorInfo.index, hex))"
+                @change="(hex) => (openColorInfo!.subIndex !== undefined ? onColorsChange(openColorInfo!.index, openColorInfo!.subIndex, hex) : onColorChange(openColorInfo!.index, hex))"
             />
         </Teleport>
     </div>

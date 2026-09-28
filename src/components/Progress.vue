@@ -1,39 +1,31 @@
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from "vue"
 
-const props = defineProps({
-    modelValue: {
-        type: Number,
-        default: 0
-    },
-    min: {
-        type: Number,
-        default: 0
-    },
-    max: {
-        type: Number,
-        default: 100
-    },
-    orient: {
-        type: String,
-        default: "horizontal" // horizontal | vertical
-    },
-    variant: {
-        // 원본 opts.type — "" | "flat" | "simple" | "simple flat"
-        type: String,
-        default: ""
-    },
-    striped: {
-        type: Boolean,
-        default: false
-    },
-    animated: {
-        type: Boolean,
-        default: false
+const props = withDefaults(
+    defineProps<{
+        modelValue?: number
+        min?: number
+        max?: number
+        orient?: "horizontal" | "vertical"
+        /** 원본 `opts.type` - `""` | `"flat"` | `"simple"` | `"simple flat"`. */
+        variant?: "" | "flat" | "simple" | "simple flat"
+        striped?: boolean
+        animated?: boolean
+    }>(),
+    {
+        modelValue: 0,
+        min: 0,
+        max: 100,
+        orient: "horizontal",
+        variant: "",
+        striped: false,
+        animated: false
     }
-})
+)
 
-const emit = defineEmits(["update:modelValue"])
+const emit = defineEmits<{
+    "update:modelValue": [value: number]
+}>()
 
 const percent = computed(() => {
     const range = props.max - props.min
@@ -49,7 +41,7 @@ const barStyle = computed(() =>
 function getValue() {
     return props.modelValue
 }
-function setValue(v) {
+function setValue(v: number) {
     emit("update:modelValue", v)
 }
 
@@ -66,10 +58,10 @@ const localAnimated = ref(props.animated)
 watch(() => props.striped, (v) => { localStriped.value = v })
 watch(() => props.animated, (v) => { localAnimated.value = v })
 
-function setStriped(isStriped) {
+function setStriped(isStriped?: boolean) {
     localStriped.value = isStriped === undefined ? props.striped : isStriped
 }
-function setAnimated(isAnimated) {
+function setAnimated(isAnimated?: boolean) {
     localAnimated.value = isAnimated === undefined ? props.animated : isAnimated
 }
 

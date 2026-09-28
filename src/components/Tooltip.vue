@@ -1,47 +1,38 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, nextTick, useSlots } from "vue"
 
 // 원본(tooltip.js)은 body에 절대좌표(getBoundingClientRect 기반)로 툴팁을 붙였다.
 // Vue 버전은 트리거를 감싸는 wrapper를 position:relative로 두고 CSS만으로 4방향에 붙인다
 // (Tab 메뉴/AutoComplete 드롭다운과 같은 패턴) — 레이아웃이 바뀌어도 재계산이 필요 없어 더 견고하다.
 // 커스텀 마크업(원본 예시의 popover 템플릿 같은 것)은 문자열 템플릿 대신 #tooltip 슬롯으로 대체한다.
-const props = defineProps({
-    text: {
-        // 원본의 title 속성/opts.title에 대응하는 툴팁 내용
-        type: String,
-        default: ""
-    },
-    position: {
-        type: String,
-        default: "top" // top | bottom | left | right
-    },
-    color: {
-        type: String,
-        default: null
-    },
-    width: {
-        type: Number,
-        default: 150
-    },
-    align: {
-        type: String,
-        default: "left" // left | right | center
-    },
-    delay: {
-        type: Number,
-        default: 0
-    },
-    showType: {
-        type: String,
-        default: "mouseover" // mouseover | click
-    },
-    hideType: {
-        type: String,
-        default: "mouseout" // mouseout | click
+const props = withDefaults(
+    defineProps<{
+        /** 원본의 title 속성/opts.title에 대응하는 툴팁 내용. */
+        text?: string
+        position?: "top" | "bottom" | "left" | "right"
+        color?: string | null
+        width?: number
+        align?: "left" | "right" | "center"
+        delay?: number
+        showType?: string
+        hideType?: string
+    }>(),
+    {
+        text: "",
+        position: "top",
+        color: null,
+        width: 150,
+        align: "left",
+        delay: 0,
+        showType: "mouseover",
+        hideType: "mouseout"
     }
-})
+)
 
-const emit = defineEmits(["show", "hide"])
+const emit = defineEmits<{
+    show: [e: Event]
+    hide: [e: Event]
+}>()
 const slots = useSlots()
 
 // 원본 update(newTitle)로 프로그래매틱하게 바꿀 수 있어서(ButtonGroup/AutoComplete와 동일한 이유로)
@@ -55,7 +46,7 @@ watch(
 )
 
 const visible = ref(false)
-const bubbleRef = ref(null)
+const bubbleRef = ref<HTMLElement | null>(null)
 // position prop대로 뒀을 때 뷰포트 밖으로 나가 완전히 안 보이는 경우를 위한 보정 - 트리거가
 // 뷰포트 가장자리에 붙어있으면("top"인데 위쪽 공간이 아예 없는 경우 등) 실제로 재현됨(예:
 // tooltip_1 데모의 "Top" 버튼은 페이지 맨 위에 있어 위로 띄우면 전부 화면 밖으로 나간다).
@@ -65,7 +56,7 @@ const bubbleRef = ref(null)
 // (원본은 좌표를 1px로 clamp만 하고 pointer-events는 그대로라 실제로 깜빡이는 버그가 있다 -
 // uiplay의 실제 grid.min.js 소스 + 인터랙션 테스트로 확인됨).
 const nudge = ref({ x: 0, y: 0 })
-let timer = null
+let timer: ReturnType<typeof setTimeout> | null = null
 
 function adjustForViewport() {
     const el = bubbleRef.value
@@ -80,7 +71,7 @@ function adjustForViewport() {
     nudge.value = { x: dx, y: dy }
 }
 
-async function doShow(e) {
+async function doShow(e: Event) {
     if (internalText.value === "") return
     nudge.value = { x: 0, y: 0 }
     visible.value = true
@@ -89,8 +80,8 @@ async function doShow(e) {
     adjustForViewport()
 }
 
-function doHide(e) {
-    clearTimeout(timer)
+function doHide(e: Event) {
+    if (timer != null) clearTimeout(timer)
     timer = null
     if (visible.value) {
         visible.value = false
@@ -98,7 +89,7 @@ function doHide(e) {
     }
 }
 
-function onShowTrigger(e) {
+function onShowTrigger(e: Event) {
     if (timer == null) {
         timer = setTimeout(() => doShow(e), props.delay)
     } else if (props.showType === props.hideType) {
@@ -106,13 +97,13 @@ function onShowTrigger(e) {
     }
 }
 
-function onHideTrigger(e) {
+function onHideTrigger(e: Event) {
     doHide(e)
 }
 
 // showType/hideType은 mouseover/mouseout/click 같은 네이티브 DOM 이벤트명을 그대로 쓴다.
 const triggerHandlers = computed(() => {
-    const handlers = { [props.showType]: onShowTrigger }
+    const handlers: Record<string, (e: Event) => void> = { [props.showType]: onShowTrigger }
     if (props.showType !== props.hideType) {
         handlers[props.hideType] = onHideTrigger
     }
@@ -120,7 +111,7 @@ const triggerHandlers = computed(() => {
 })
 
 /** 원본 update(newTitle) — 툴팁 내용을 프로그래매틱하게 교체 */
-function update(newText) {
+function update(newText: string) {
     internalText.value = newText
 }
 

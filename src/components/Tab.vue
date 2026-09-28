@@ -1,6 +1,20 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch, onMounted, onBeforeUnmount, markRaw, nextTick } from "vue"
+import type { CSSProperties } from "vue"
 import Dropdown from "./Dropdown.vue"
+
+interface TabItem {
+    text?: string
+    value?: string | number
+    disabled?: boolean
+    content?: unknown
+    contentProps?: Record<string, unknown>
+}
+interface MenuItem {
+    text?: string
+    value?: string | number
+    divider?: boolean
+}
 
 // 원본처럼 컴포넌트가 탭 목록을 직접 들고 있다가(localItems), 아래 defineExpose로
 // update/insert/append/prepend/remove/move/enable/disable/show/activeIndex 메서드를 제공한다.
@@ -12,64 +26,51 @@ import Dropdown from "./Dropdown.vue"
 //   2) append()/insert() 등으로 동적으로 추가하는 탭 → 슬롯을 미리 선언해둘 수 없으므로,
 //      node에 content로 실제 컴포넌트(또는 렌더 함수)를 실어 보낸다. <component :is="item.content">
 //      로 렌더링하므로, 그 자리에서 동적으로 만든 컴포넌트/템플릿을 그대로 지정할 수 있다.
-const props = defineProps({
-    items: {
-        // { text, value, disabled?, content?, contentProps? }
-        type: Array,
-        required: true
-    },
-    modelValue: {
-        // 활성 탭의 index
-        type: Number,
-        default: 0
-    },
-    position: {
-        type: String,
-        default: "top" // top | bottom
-    },
-    variant: {
-        // examples/tab.html 의 .tab / .pill 두 스타일과 동일
-        type: String,
-        default: "tab" // "tab" | "pill"
-    },
-    drag: {
-        // 원본 opts.drag — 마우스로 끌어서 탭 순서 재정렬
-        type: Boolean,
-        default: false
-    },
-    menu: {
-        // 원본 tpl.menu 오버플로우 드롭다운에 대응. [{ text, value, divider? }]
-        // 주어지면 탭 목록 끝에 "Menu" 항목이 추가된다.
-        type: Array,
-        default: undefined
-    },
-    contentStyle: {
-        // 원본 데모들은 탭 목록(#tab_N)과 콘텐츠 영역(#tab_contents_N)이 별개의 최상위
-        // 엘리먼트라 콘텐츠 쪽에만 배경 등을 따로 줄 수 있었다(예: background:#dcdcdc).
-        // 이 컴포넌트는 콘텐츠를 내부의 .jui-tab-content래퍼로 감싸므로, 그 스타일을
-        // 바깥에서 지정할 수 있게 prop으로 노출한다.
-        type: [String, Object, Array],
-        default: undefined
+const props = withDefaults(
+    defineProps<{
+        items: TabItem[]
+        /** 활성 탭의 index. */
+        modelValue?: number
+        position?: "top" | "bottom"
+        /** examples/tab.html의 .tab / .pill 두 스타일과 동일. */
+        variant?: "tab" | "pill"
+        /** 원본 opts.drag - 마우스로 끌어서 탭 순서 재정렬. */
+        drag?: boolean
+        /** 원본 tpl.menu 오버플로우 드롭다운에 대응. 주어지면 탭 목록 끝에 "Menu" 항목이 추가된다. */
+        menu?: MenuItem[]
+        /** 원본 데모들은 탭 목록(#tab_N)과 콘텐츠 영역(#tab_contents_N)이 별개의 최상위
+         * 엘리먼트라 콘텐츠 쪽에만 배경 등을 따로 줄 수 있었다(예: background:#dcdcdc).
+         * 이 컴포넌트는 콘텐츠를 내부의 .jui-tab-content래퍼로 감싸므로, 그 스타일을
+         * 바깥에서 지정할 수 있게 prop으로 노출한다. */
+        contentStyle?: string | CSSProperties | CSSProperties[]
+    }>(),
+    {
+        modelValue: 0,
+        position: "top",
+        variant: "tab",
+        drag: false,
+        menu: undefined,
+        contentStyle: undefined
     }
-})
+)
 
-const emit = defineEmits([
-    "update:modelValue",
-    "update:items",
-    "change",
-    "click",
-    "dragstart",
-    "dragend",
-    "menu",
-    "changemenu"
-])
+const emit = defineEmits<{
+    "update:modelValue": [index: number]
+    "update:items": [items: TabItem[]]
+    change: [payload: { index: number; item: TabItem }, e?: MouseEvent]
+    click: [payload: { index: number; item: TabItem }, e: MouseEvent]
+    dragstart: [index: number, e: MouseEvent]
+    dragend: [index: number, e: MouseEvent]
+    menu: [payload: { text: string }, e: MouseEvent]
+    changemenu: [payload: { index: number; value: string | number | undefined; text: string | undefined }]
+}>()
 
 // item 객체를 얕은 복사해서 들고 있는다 — enable/disable 등이 부모가 넘긴 원본 객체를
 // 직접 mutate하지 않도록 하기 위함(props는 mutate하면 안 되므로).
 // content(컴포넌트 정의)는 markRaw로 감싸서 반응형 프록시 대상에서 제외한다 —
 // 안 그러면 Vue가 컴포넌트 객체 자체를 reactive()로 감싸려다 경고를 낸다.
-function normalizeItem(item) {
-    return item.content ? { ...item, content: markRaw(item.content) } : { ...item }
+function normalizeItem(item: TabItem): TabItem {
+    return item.content ? { ...item, content: markRaw(item.content as object) } : { ...item }
 }
 
 const localItems = ref(props.items.map(normalizeItem))
@@ -119,7 +120,7 @@ function waitForPaint() {
     )
 }
 
-async function selectTab(index, item, e) {
+async function selectTab(index: number, item: TabItem, e: MouseEvent) {
     if (suppressClick.value || item.disabled || index === effectiveIndex.value) return
 
     emit("update:modelValue", index)
@@ -128,7 +129,7 @@ async function selectTab(index, item, e) {
     emit("click", { index, item }, e)
 }
 
-function reorder(fromIndex, toIndex) {
+function reorder(fromIndex: number, toIndex: number) {
     if (fromIndex === toIndex) return
 
     const next = localItems.value.slice()
@@ -147,9 +148,9 @@ function reorder(fromIndex, toIndex) {
 }
 
 // --- 마우스 드래그 재정렬 ---
-const dragIndex = ref(null)
+const dragIndex = ref<number | null>(null)
 
-function onDragStart(index, e) {
+function onDragStart(index: number, e: MouseEvent) {
     if (!props.drag) return
 
     // 없으면 <a> 태그의 네이티브 드래그 제스처가 끼어들어서, 드래그 도중 다른 탭으로 넘어갈 때
@@ -159,7 +160,7 @@ function onDragStart(index, e) {
     emit("dragstart", index, e)
 }
 
-function onDragEnter(targetIndex) {
+function onDragEnter(targetIndex: number) {
     if (dragIndex.value === null || dragIndex.value === targetIndex) return
 
     suppressClick.value = true
@@ -167,7 +168,7 @@ function onDragEnter(targetIndex) {
     dragIndex.value = targetIndex
 }
 
-function onDragEnd(e) {
+function onDragEnd(e: MouseEvent) {
     if (dragIndex.value === null) return
 
     emit("dragend", dragIndex.value, e)
@@ -187,12 +188,12 @@ function onDragEnd(e) {
 // 재사용해 li 바깥의 형제로 렌더링하고, 클릭 시 트리거의 위치를 측정해 show(x, y)로
 // 띄운다 - li 안에 직접 그리던 예전 방식은 구조(tag)가 아예 달라 프로덕션과 diff났다.
 const menuOpen = ref(false)
-const tabRoot = ref(null)
-const menuDropdownRef = ref(null)
+const tabRoot = ref<HTMLElement | null>(null)
+const menuDropdownRef = ref<InstanceType<typeof Dropdown> | null>(null)
 
 const menuDropdownItems = computed(() => (props.menu || []).map((m) => ({ ...m })))
 
-function onMenuClick(e) {
+function onMenuClick(e: MouseEvent) {
     emit("menu", { text: "menu" }, e)
 
     if (menuOpen.value) {
@@ -207,7 +208,7 @@ function onMenuClick(e) {
     // 기준 상대 좌표가 아니라 문서 전체 기준 절대 좌표여야 한다(실측: 프로덕션의
     // dd_1 top은 트리거 li의 viewport 기준 bottom과 거의 일치, tabRoot의 top을
     // 빼면 오히려 어긋난다).
-    const li = e.currentTarget
+    const li = e.currentTarget as HTMLElement
     const rect = li.getBoundingClientRect()
     menuOpen.value = true
     if (menuDropdownRef.value) {
@@ -215,13 +216,13 @@ function onMenuClick(e) {
     }
 }
 
-function onMenuDropdownChange(data) {
+function onMenuDropdownChange(data: { index: number; value: string | null; text: string | null }) {
     menuOpen.value = false
-    emit("changemenu", { index: data.index, value: data.value, text: data.text })
+    emit("changemenu", { index: data.index, value: data.value ?? undefined, text: data.text ?? undefined })
 }
 
-function onDocumentClick(e) {
-    if (menuOpen.value && tabRoot.value && !tabRoot.value.contains(e.target)) {
+function onDocumentClick(e: MouseEvent) {
+    if (menuOpen.value && tabRoot.value && !tabRoot.value.contains(e.target as Node)) {
         menuOpen.value = false
     }
 }
@@ -234,13 +235,13 @@ onBeforeUnmount(() => document.removeEventListener("click", onDocumentClick))
 // --- 원본 API와 동일한 명령형 메서드들 (템플릿 ref로 받아서 호출) ---
 
 /** 원본 update(nodes) — 탭 목록을 통째로 교체. node = { text, value, disabled?, content?, contentProps? } */
-function update(nodes) {
+function update(nodes: TabItem[]) {
     localItems.value = nodes.map(normalizeItem)
     syncItems()
 }
 
 /** 원본 insert(index, node) — 지정 위치에 탭 추가 */
-function insert(index, node) {
+function insert(index: number, node: TabItem) {
     const next = localItems.value.slice()
     next.splice(index, 0, normalizeItem(node))
     localItems.value = next
@@ -248,19 +249,19 @@ function insert(index, node) {
 }
 
 /** 원본 append(node) — 맨 뒤에 탭 추가. 슬롯을 미리 못 선언하니 node.content로 컴포넌트를 실어 보내면 된다 */
-function append(node) {
+function append(node: TabItem) {
     localItems.value = [...localItems.value, normalizeItem(node)]
     syncItems()
 }
 
 /** 원본 prepend(node) — 맨 앞에 탭 추가 */
-function prepend(node) {
+function prepend(node: TabItem) {
     localItems.value = [normalizeItem(node), ...localItems.value]
     syncItems()
 }
 
 /** 원본 remove(index) — 지정 인덱스의 탭 제거 */
-function remove(index) {
+function remove(index: number) {
     const next = localItems.value.slice()
     next.splice(index, 1)
     localItems.value = next
@@ -268,12 +269,12 @@ function remove(index) {
 }
 
 /** 원본 move(index, targetIndex) — 탭 위치 변경(드래그와 동일 로직, 이벤트는 emit하지 않음) */
-function move(index, targetIndex) {
+function move(index: number, targetIndex: number) {
     reorder(index, targetIndex)
 }
 
 /** 원본 show(index) — 프로그래매틱하게 탭 활성화(click과 달리 change만 emit) */
-async function show(index) {
+async function show(index: number) {
     const item = localItems.value[index]
     if (!item || item.disabled || index === effectiveIndex.value) return
 
@@ -283,14 +284,14 @@ async function show(index) {
 }
 
 /** 원본 enable(index) — 비활성 탭을 다시 활성화 가능하게 전환 */
-function enable(index) {
+function enable(index: number) {
     if (index === effectiveIndex.value || !localItems.value[index]) return
     localItems.value[index].disabled = false
     syncItems()
 }
 
 /** 원본 disable(index) — 탭을 비활성화(현재 선택된 탭은 비활성화 불가) */
-function disable(index) {
+function disable(index: number) {
     if (index === effectiveIndex.value || !localItems.value[index]) return
     localItems.value[index].disabled = true
     syncItems()

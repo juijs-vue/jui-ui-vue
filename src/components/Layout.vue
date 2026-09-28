@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // 원본(layout.js)은 dist/전용 .less가 없다 — 모든 시각 스타일(position/top/left/width/
 // height/background/cursor)을 JS에서 직접 인라인으로 넣는 방식이라, 이 포트도 전부
 // :style 바인딩으로 재현한다. 이 컴포넌트는 리포에 examples/layout.html도 없어서(=
@@ -14,34 +14,66 @@
 // (resizerPos+barSize) 공식)은 원본 로직을 그대로 유도해서 재현했다 — 이 부분은
 // 내부적으로 정확했다(죽은 코드가 아니었다).
 import { ref, computed, onMounted, onBeforeUnmount, useSlots, nextTick } from "vue"
+import type { CSSProperties } from "vue"
 
-const props = defineProps({
-    width: { type: Number, default: null },
-    height: { type: Number, default: null },
-    barColor: { type: String, default: "#d6d6d6" },
-    barSize: { type: Number, default: 3 },
+type LayoutDir = "top" | "bottom" | "left" | "right"
 
-    topSize: { type: Number, default: null },
-    topMin: { type: Number, default: 50 },
-    topMax: { type: Number, default: 200 },
-    topResize: { type: Boolean, default: true },
+const props = withDefaults(
+    defineProps<{
+        width?: number | null
+        height?: number | null
+        barColor?: string
+        barSize?: number
 
-    bottomSize: { type: Number, default: null },
-    bottomMin: { type: Number, default: 50 },
-    bottomMax: { type: Number, default: 200 },
-    bottomResize: { type: Boolean, default: true },
+        topSize?: number | null
+        topMin?: number
+        topMax?: number
+        topResize?: boolean
 
-    leftSize: { type: Number, default: null },
-    leftMin: { type: Number, default: 50 },
-    leftMax: { type: Number, default: 200 },
-    leftResize: { type: Boolean, default: true },
+        bottomSize?: number | null
+        bottomMin?: number
+        bottomMax?: number
+        bottomResize?: boolean
 
-    rightSize: { type: Number, default: null },
-    rightMin: { type: Number, default: 50 },
-    rightMax: { type: Number, default: 200 },
-    rightResize: { type: Boolean, default: true }
-})
-const emit = defineEmits(["update:topSize", "update:bottomSize", "update:leftSize", "update:rightSize"])
+        leftSize?: number | null
+        leftMin?: number
+        leftMax?: number
+        leftResize?: boolean
+
+        rightSize?: number | null
+        rightMin?: number
+        rightMax?: number
+        rightResize?: boolean
+    }>(),
+    {
+        width: null,
+        height: null,
+        barColor: "#d6d6d6",
+        barSize: 3,
+        topSize: null,
+        topMin: 50,
+        topMax: 200,
+        topResize: true,
+        bottomSize: null,
+        bottomMin: 50,
+        bottomMax: 200,
+        bottomResize: true,
+        leftSize: null,
+        leftMin: 50,
+        leftMax: 200,
+        leftResize: true,
+        rightSize: null,
+        rightMin: 50,
+        rightMax: 200,
+        rightResize: true
+    }
+)
+const emit = defineEmits<{
+    "update:topSize": [value: number]
+    "update:bottomSize": [value: number]
+    "update:leftSize": [value: number]
+    "update:rightSize": [value: number]
+}>()
 
 const slots = useSlots()
 const hasTop = computed(() => !!slots.top)
@@ -60,7 +92,7 @@ const currentBottom = computed(() => props.bottomSize ?? internalBottom.value)
 const currentLeft = computed(() => props.leftSize ?? internalLeft.value)
 const currentRight = computed(() => props.rightSize ?? internalRight.value)
 
-const rootEl = ref(null)
+const rootEl = ref<HTMLElement | null>(null)
 const rootSize = ref({ width: 0, height: 0 })
 
 function measureRoot() {
@@ -68,12 +100,12 @@ function measureRoot() {
     rootSize.value = { width: rootEl.value.clientWidth, height: rootEl.value.clientHeight }
 }
 
-let resizeObserver = null
+let resizeObserver: ResizeObserver | null = null
 onMounted(() => {
     measureRoot()
     if (typeof ResizeObserver !== "undefined") {
         resizeObserver = new ResizeObserver(measureRoot)
-        resizeObserver.observe(rootEl.value)
+        resizeObserver.observe(rootEl.value!)
     }
     window.addEventListener("resize", measureRoot)
 })
@@ -82,7 +114,7 @@ onBeforeUnmount(() => {
     window.removeEventListener("resize", measureRoot)
 })
 
-const rootStyle = computed(() => ({
+const rootStyle = computed<CSSProperties>(() => ({
     position: "relative",
     // width/height prop이 없으면 원본처럼 "이미 크기가 잡힌 컨테이너에 적용"되는 걸 전제하되,
     // 모든 자식이 absolute라 그 자체로는 높이가 0으로 붕괴되므로(position:relative만으로는
@@ -99,14 +131,14 @@ const rightBand = computed(() => (hasRight.value ? currentRight.value + (props.r
 const middleHeight = computed(() => Math.max(0, rootSize.value.height - topBand.value - bottomBand.value))
 const middleWidth = computed(() => Math.max(0, rootSize.value.width - leftBand.value - rightBand.value))
 
-const topStyle = computed(() => ({
+const topStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     top: "0px",
     left: "0px",
     width: "100%",
     height: currentTop.value + "px"
 }))
-const topResizerStyle = computed(() => ({
+const topResizerStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     top: currentTop.value + "px",
     left: "0px",
@@ -116,14 +148,14 @@ const topResizerStyle = computed(() => ({
     cursor: "n-resize"
 }))
 
-const bottomStyle = computed(() => ({
+const bottomStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     left: "0px",
     width: "100%",
     height: currentBottom.value + "px",
     top: rootSize.value.height - currentBottom.value + "px"
 }))
-const bottomResizerStyle = computed(() => ({
+const bottomResizerStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     top: rootSize.value.height - currentBottom.value - props.barSize + "px",
     left: "0px",
@@ -133,7 +165,7 @@ const bottomResizerStyle = computed(() => ({
     cursor: "n-resize"
 }))
 
-const leftStyle = computed(() => ({
+const leftStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     top: topBand.value + "px",
     left: "0px",
@@ -142,7 +174,7 @@ const leftStyle = computed(() => ({
     maxWidth: "100%",
     overflow: "auto"
 }))
-const leftResizerStyle = computed(() => ({
+const leftResizerStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     top: topBand.value + "px",
     left: currentLeft.value + "px",
@@ -152,7 +184,7 @@ const leftResizerStyle = computed(() => ({
     cursor: "e-resize"
 }))
 
-const rightStyle = computed(() => ({
+const rightStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     top: topBand.value + "px",
     left: rootSize.value.width - currentRight.value + "px",
@@ -160,7 +192,7 @@ const rightStyle = computed(() => ({
     width: currentRight.value + "px",
     maxWidth: "100%"
 }))
-const rightResizerStyle = computed(() => ({
+const rightResizerStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     top: topBand.value + "px",
     left: rootSize.value.width - currentRight.value - props.barSize + "px",
@@ -170,7 +202,7 @@ const rightResizerStyle = computed(() => ({
     cursor: "e-resize"
 }))
 
-const centerStyle = computed(() => ({
+const centerStyle = computed<CSSProperties>(() => ({
     position: "absolute",
     top: topBand.value + "px",
     left: leftBand.value + "px",
@@ -180,15 +212,15 @@ const centerStyle = computed(() => ({
 }))
 
 // ---- 드래그(리사이즈) ----
-const dragging = ref(null) // 'top' | 'bottom' | 'left' | 'right' | null
+const dragging = ref<LayoutDir | null>(null)
 const ghostPos = ref(0) // 드래그 중 고스트 바의 화면 좌표(px, 컨테이너 기준)
 let dragStartOffset = 0
 
-function clientPos(e, dir) {
+function clientPos(e: MouseEvent, dir: LayoutDir) {
     return dir === "top" || dir === "bottom" ? e.clientY : e.clientX
 }
 
-function onResizerMouseDown(dir, e) {
+function onResizerMouseDown(dir: LayoutDir, e: MouseEvent) {
     if (!rootEl.value) return
     dragging.value = dir
     const rect = rootEl.value.getBoundingClientRect()
@@ -205,7 +237,7 @@ function onResizerMouseDown(dir, e) {
     document.body.style.userSelect = "none"
 }
 
-function onDocMouseMove(e) {
+function onDocMouseMove(e: MouseEvent) {
     if (!dragging.value || !rootEl.value) return
     const rect = rootEl.value.getBoundingClientRect()
     const dir = dragging.value
@@ -256,10 +288,10 @@ onBeforeUnmount(() => {
     document.removeEventListener("mouseup", onDocMouseUp)
 })
 
-const ghostStyle = computed(() => {
+const ghostStyle = computed<CSSProperties>(() => {
     const dir = dragging.value
     if (!dir) return {}
-    const base = {
+    const base: CSSProperties = {
         position: "absolute",
         background: props.barColor,
         opacity: 0.3,

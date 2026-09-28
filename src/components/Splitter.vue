@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // 원본(splitter.js)은 CSS 클래스가 아니라 jQuery로 계산한 픽셀 값을 인라인 스타일로 직접
 // 밀어넣는 방식(position:absolute + left/top/width/height 전부 JS 계산)이라 전용 .less가
 // 없다. Vue 버전도 동일하게 인라인 스타일 바인딩으로 재현한다.
@@ -10,42 +10,57 @@
 // 이벤트명 'move.done'은 Vue 템플릿의 @move.done이 "done" modifier로 파싱되어 버리므로
 // 'resize'로 이름을 바꿨다(동작은 동일 — 드래그가 끝났을 때 1회 발생).
 import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue"
+import type { CSSProperties } from "vue"
 
-const props = defineProps({
-    direction: { type: String, default: "vertical" }, // 'vertical' | 'horizontal'
-    initSize: { type: [String, Number], default: "50%" },
-    minSize: { type: [Number, Array], default: 30 },
-    barSize: { type: Number, default: 4 },
-    barStyle: {
-        type: Object,
-        default: () => ({ backgroundColor: "#f6f6f6", borderRight: "1px solid #e4e4e4" })
-    },
-    fixed: { type: Boolean, default: false },
-    hidden: { type: Number, default: null } // null | 0 | 1 — v-model:hidden
-})
+const props = withDefaults(
+    defineProps<{
+        direction?: "vertical" | "horizontal"
+        initSize?: string | number
+        minSize?: number | [number, number]
+        barSize?: number
+        barStyle?: Record<string, string>
+        fixed?: boolean
+        /** null | 0 | 1 - v-model:hidden. */
+        hidden?: 0 | 1 | null
+    }>(),
+    {
+        direction: "vertical",
+        initSize: "50%",
+        minSize: 30,
+        barSize: 4,
+        barStyle: () => ({ backgroundColor: "#f6f6f6", borderRight: "1px solid #e4e4e4" }),
+        fixed: false,
+        hidden: null
+    }
+)
 
-const emit = defineEmits(["update:hidden", "resize"])
+const emit = defineEmits<{
+    "update:hidden": [value: 0 | 1 | null]
+    resize: [splitPx: number]
+}>()
 
-const rootEl = ref(null)
+const rootEl = ref<HTMLElement | null>(null)
 const splitPx = ref(0)
 const dragging = ref(false)
 
 const isVertical = computed(() => props.direction === "vertical")
-const minSizePair = computed(() => (typeof props.minSize === "number" ? [props.minSize, props.minSize] : props.minSize))
+const minSizePair = computed<[number, number]>(() =>
+    typeof props.minSize === "number" ? [props.minSize, props.minSize] : props.minSize
+)
 
 function containerSize() {
     if (!rootEl.value) return 0
     return isVertical.value ? rootEl.value.clientWidth : rootEl.value.clientHeight
 }
 
-function resolveSize(size, maxSize) {
+function resolveSize(size: string | number, maxSize: number): number {
     if (typeof size === "string" && size.indexOf("%") > -1) {
         return maxSize * (parseFloat(size.replace("%", "")) / 100)
     }
-    return size
+    return size as number
 }
 
-function clamp(pos, maxSize) {
+function clamp(pos: number, maxSize: number) {
     const [minFirst, minSecond] = minSizePair.value
     if (pos < props.barSize + minFirst) return props.barSize + minFirst
     if (pos > maxSize - props.barSize - minSecond) return maxSize - props.barSize - minSecond
@@ -62,7 +77,7 @@ function recompute() {
     splitPx.value = clamp(resolveSize(props.initSize, maxSize), maxSize)
 }
 
-let observer = null
+let observer: ResizeObserver | null = null
 onMounted(() => {
     recompute()
     // Border Layout 데모처럼 Splitter 슬롯 안에 또 Splitter가 중첩된 경우, 안쪽 Splitter는
@@ -72,16 +87,16 @@ onMounted(() => {
     // 드래그하기 전까지는 컨테이너 크기 변화를 계속 관찰하며 퍼센트 기준으로 다시 계산한다.
     if (typeof ResizeObserver !== "undefined") {
         observer = new ResizeObserver(recompute)
-        observer.observe(rootEl.value)
+        observer.observe(rootEl.value!)
     }
 })
 onBeforeUnmount(() => observer?.disconnect())
 
 watch(() => [props.direction, props.initSize, props.minSize, props.barSize, props.hidden], recompute)
 
-const rootStyle = { position: "absolute", width: "100%", height: "100%", overflow: "hidden" }
+const rootStyle: CSSProperties = { position: "absolute", width: "100%", height: "100%", overflow: "hidden" }
 
-const panel1Style = computed(() => {
+const panel1Style = computed<CSSProperties>(() => {
     if (props.hidden === 0) return { display: "none" }
     if (props.hidden === 1) return { position: "absolute", left: "0px", right: "0px", top: "0px", bottom: "0px" }
     return isVertical.value
@@ -89,7 +104,7 @@ const panel1Style = computed(() => {
         : { position: "absolute", top: "0px", height: splitPx.value + "px", left: "0px", right: "0px" }
 })
 
-const panel2Style = computed(() => {
+const panel2Style = computed<CSSProperties>(() => {
     if (props.hidden === 1) return { display: "none" }
     if (props.hidden === 0) return { position: "absolute", left: "0px", right: "0px", top: "0px", bottom: "0px" }
     return isVertical.value
@@ -99,8 +114,8 @@ const panel2Style = computed(() => {
 
 const showBar = computed(() => props.hidden === null)
 
-const barStyleComputed = computed(() => {
-    const base = isVertical.value
+const barStyleComputed = computed<CSSProperties>(() => {
+    const base: CSSProperties = isVertical.value
         ? { position: "absolute", top: "0px", bottom: "0px", width: props.barSize + "px", left: splitPx.value + "px", cursor: "ew-resize" }
         : { position: "absolute", left: "0px", right: "0px", height: props.barSize + "px", top: splitPx.value + "px", cursor: "ns-resize" }
     return { ...base, ...props.barStyle }
@@ -108,7 +123,7 @@ const barStyleComputed = computed(() => {
 
 let prevClient = 0
 let prevBodyUserSelect = ""
-function onBarMouseDown(e) {
+function onBarMouseDown(e: MouseEvent) {
     if (props.fixed) return
     e.preventDefault() // 없으면 드래그하면서 마우스가 지나가는 양쪽 패널의 텍스트가 계속 선택된다
     dragging.value = true
@@ -116,12 +131,12 @@ function onBarMouseDown(e) {
     prevClient = isVertical.value ? e.clientX : e.clientY
     prevBodyUserSelect = document.body.style.userSelect
     document.body.style.userSelect = "none"
-    rootEl.value.querySelectorAll("iframe").forEach((f) => (f.style.pointerEvents = "none"))
+    rootEl.value!.querySelectorAll("iframe").forEach((f) => ((f as HTMLElement).style.pointerEvents = "none"))
     document.addEventListener("mousemove", onMouseMove)
     document.addEventListener("mouseup", onMouseUp)
 }
 
-function onMouseMove(e) {
+function onMouseMove(e: MouseEvent) {
     if (!dragging.value) return
     const client = isVertical.value ? e.clientX : e.clientY
     const dist = client - prevClient
@@ -136,7 +151,7 @@ function onMouseUp() {
     document.removeEventListener("mousemove", onMouseMove)
     document.removeEventListener("mouseup", onMouseUp)
     document.body.style.userSelect = prevBodyUserSelect
-    rootEl.value.querySelectorAll("iframe").forEach((f) => (f.style.pointerEvents = "auto"))
+    rootEl.value!.querySelectorAll("iframe").forEach((f) => ((f as HTMLElement).style.pointerEvents = "auto"))
     emit("resize", splitPx.value)
 }
 
@@ -145,16 +160,16 @@ onBeforeUnmount(() => {
     document.removeEventListener("mouseup", onMouseUp)
 })
 
-function setHide(index) {
+function setHide(index: 0 | 1) {
     emit("update:hidden", index)
 }
-function setShow(index) {
+function setShow(index: 0 | 1) {
     if (props.hidden === index) emit("update:hidden", null)
 }
-function toggle(index) {
+function toggle(index: 0 | 1) {
     emit("update:hidden", props.hidden === index ? null : index)
 }
-function setInitSize(size) {
+function setInitSize(size: string | number) {
     userAdjusted.value = true
     const maxSize = containerSize()
     splitPx.value = clamp(resolveSize(size, maxSize), maxSize)

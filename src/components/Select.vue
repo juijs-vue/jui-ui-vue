@@ -1,64 +1,71 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from "vue"
 
 // 원본(select.js)은 커스텀 셀렉트박스로, title을 클릭하면 items 목록이 드롭다운으로 열리고
 // 바깥을 클릭하면 닫힌다. text/html이 함수일 수도 있는 원본 렌더러 규칙을 그대로 옮겼다.
-const props = defineProps({
-    items: {
-        // string[] 또는 { value, text?, html?, type?: 'divider' }[]
-        type: Array,
-        default: () => []
-    },
-    modelValue: {
-        // multi=false: value 하나 / multi=true: value 배열
-        type: [String, Number, Array],
-        default: undefined
-    },
-    multi: {
-        type: Boolean,
-        default: false
-    },
-    placeholder: {
-        type: String,
-        default: "Select a item"
-    },
-    align: {
-        type: String,
-        default: "left" // left | right
-    },
-    valign: {
-        type: String,
-        default: "top" // top | bottom
-    }
-})
+type SelectValue = string | number
+interface SelectItemObject {
+    value?: SelectValue
+    text?: string | ((this: SelectItemObject) => string)
+    html?: string | ((this: SelectItemObject) => string)
+    type?: "divider"
+    selected?: boolean
+}
+type SelectItem = string | SelectItemObject
 
-const emit = defineEmits(["update:modelValue", "change"])
+const props = withDefaults(
+    defineProps<{
+        /** string[] 또는 { value, text?, html?, type?: 'divider' }[]. */
+        items?: SelectItem[]
+        /** multi=false: value 하나 / multi=true: value 배열. */
+        modelValue?: SelectValue | SelectValue[]
+        multi?: boolean
+        placeholder?: string
+        align?: "left" | "right"
+        valign?: "top" | "bottom"
+    }>(),
+    {
+        items: () => [],
+        modelValue: undefined,
+        multi: false,
+        placeholder: "Select a item",
+        align: "left",
+        valign: "top"
+    }
+)
+
+const emit = defineEmits<{
+    "update:modelValue": [value: SelectValue | SelectValue[]]
+    change: [value: SelectValue | SelectValue[], prevValue: SelectValue | SelectValue[] | undefined]
+}>()
 
 // 원본처럼 문자열 아이템은 { text: it, value: it }로 정규화한다.
-const normalizedItems = computed(() =>
+const normalizedItems = computed<SelectItemObject[]>(() =>
     props.items.map((it) => (typeof it === "string" ? { text: it, value: it } : it))
 )
 
-function callOrValue(fn, item) {
+function callOrValue(fn: string | ((this: SelectItemObject) => string) | undefined, item: SelectItemObject) {
     return typeof fn === "function" ? fn.call(item) : fn
 }
 
 const open = ref(false)
-const rootRef = ref(null)
+const rootRef = ref<HTMLElement | null>(null)
 
 // modelValue 없이 쓰는 경우, items의 selected:true를 초기값으로 삼는다(원본 update()와 동일)
-function initialValue() {
+function initialValue(): SelectValue | SelectValue[] | undefined {
     if (props.multi) {
-        return normalizedItems.value.filter((it) => it.selected).map((it) => it.value)
+        return normalizedItems.value.filter((it) => it.selected).map((it) => it.value as SelectValue)
     }
     const selected = normalizedItems.value.find((it) => it.selected)
     return selected ? selected.value : undefined
 }
 
-const internalValue = ref(props.modelValue !== undefined ? props.modelValue : initialValue())
+const internalValue = ref<SelectValue | SelectValue[] | undefined>(
+    props.modelValue !== undefined ? props.modelValue : initialValue()
+)
 const currentValue = computed(() => (props.modelValue !== undefined ? props.modelValue : internalValue.value))
 
-function isSelected(item) {
+function isSelected(item: SelectItemObject) {
     // divider처럼 value가 없는 항목이, 아무것도 선택 안 된 상태(currentValue===undefined)일 때
     // undefined===undefined로 우연히 "선택됨"이 돼버리는 걸 막는다.
     if (item.type === "divider" || item.value === undefined) return false
@@ -69,32 +76,32 @@ function isSelected(item) {
     return currentValue.value === item.value
 }
 
-function setValue(value) {
+function setValue(value: SelectValue | SelectValue[]) {
     const prevValue = currentValue.value
     internalValue.value = value
     emit("update:modelValue", value)
     emit("change", value, prevValue)
 }
 
-function onItemClick(item) {
+function onItemClick(item: SelectItemObject) {
     if (item.type === "divider") return
 
     if (props.multi) {
         const current = Array.isArray(currentValue.value) ? currentValue.value : []
-        const next = current.includes(item.value)
+        const next = current.includes(item.value as SelectValue)
             ? current.filter((v) => v !== item.value)
-            : [...current, item.value]
+            : [...current, item.value as SelectValue]
         setValue(next)
     } else {
-        setValue(item.value)
+        setValue(item.value as SelectValue)
         open.value = false
     }
 }
 
 const selectedItems = computed(() => normalizedItems.value.filter((it) => isSelected(it)))
 
-function onDocumentClick(e) {
-    if (open.value && rootRef.value && !rootRef.value.contains(e.target)) {
+function onDocumentClick(e: MouseEvent) {
+    if (open.value && rootRef.value && !rootRef.value.contains(e.target as Node)) {
         open.value = false
     }
 }
@@ -107,14 +114,14 @@ function getValue() {
     return currentValue.value
 }
 /** 원본 setValue(value) */
-function setValueApi(value) {
+function setValueApi(value: SelectValue | SelectValue[]) {
     setValue(value)
 }
 /** 원본 setSelectedIndex(index) */
-function setSelectedIndex(index) {
+function setSelectedIndex(index: number) {
     const item = normalizedItems.value[index]
     if (!item) return
-    setValue(props.multi ? [item.value] : item.value)
+    setValue(props.multi ? [item.value as SelectValue] : (item.value as SelectValue))
 }
 /** 원본 getSelectedIndex() — multi가 아닐 때 현재 선택된 아이템의 인덱스 */
 function getSelectedIndex() {

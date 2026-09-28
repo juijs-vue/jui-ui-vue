@@ -1,37 +1,35 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from "vue"
 
 // 원본(paging.js)의 changePage() 페이지 범위 계산 로직을 그대로 옮겼다.
 // 원본 예시 페이지(examples/paging.html)가 리포에 없어서 pixel 비교 대상은 없고,
 // paging.less/paging.theme.less의 마크업 구조(.paging > .prev/.list/.next)만 근거로 삼았다.
-const props = defineProps({
-    modelValue: {
-        // 현재 페이지(1-base). 안 주면 컴포넌트가 내부적으로 1페이지부터 관리한다.
-        type: Number,
-        default: undefined
-    },
-    count: {
-        // 전체 레코드 수
-        type: Number,
-        default: 0
-    },
-    pageCount: {
-        // 페이지당 레코드 수
-        type: Number,
-        default: 10
-    },
-    screenCount: {
-        // 한 화면에 보여줄 페이지 번호 개수
-        type: Number,
-        default: 5
-    },
-    size: {
-        type: String,
-        default: "normal" // normal | large
+const props = withDefaults(
+    defineProps<{
+        /** 현재 페이지(1-base). 안 주면 컴포넌트가 내부적으로 1페이지부터 관리한다. */
+        modelValue?: number
+        /** 전체 레코드 수. */
+        count?: number
+        /** 페이지당 레코드 수. */
+        pageCount?: number
+        /** 한 화면에 보여줄 페이지 번호 개수. */
+        screenCount?: number
+        size?: "normal" | "large"
+    }>(),
+    {
+        modelValue: undefined,
+        count: 0,
+        pageCount: 10,
+        screenCount: 5,
+        size: "normal"
     }
-})
+)
 
-const emit = defineEmits(["update:modelValue", "page", "reload"])
+const emit = defineEmits<{
+    "update:modelValue": [value: number]
+    page: [value: number]
+    reload: []
+}>()
 
 // 원본은 Math.ceil(count / pageCount)를 그대로 쓴다 - count가 0이면 lastPage도 0이 되고,
 // 아래 pages 계산 루프가 그 경우 빈 배열을 내놓아 페이지 번호가 하나도 안 보인다(1로 밀어
@@ -64,7 +62,7 @@ const pages = computed(() => {
     return list
 })
 
-function setPage(pNo, emitEvent) {
+function setPage(pNo: number, emitEvent: boolean) {
     let next = pNo > lastPage.value ? lastPage.value : pNo
     next = pNo < 1 ? 1 : next
 
@@ -74,7 +72,7 @@ function setPage(pNo, emitEvent) {
 }
 
 /** 원본 page(pNo) — 인자가 없으면 현재 페이지를 반환 */
-function page(pNo) {
+function page(pNo?: number) {
     if (!pNo) return currentPage.value
     setPage(pNo, true)
     return undefined

@@ -1,52 +1,59 @@
-<script setup>
+<script setup lang="ts">
 import { ref, computed, watch } from "vue"
 
 // 원본(timepicker.js)은 하나의 컴포넌트가 마크업에 .year/.month/.date가 있으면 "날짜" 모드,
 // .hours/.minutes가 있으면 위/아래 스피너까지 딸린 "시간" 모드로 동작했다(둘 다 있으면 스피너는
 // hours/minutes 둘 다 있을 때만 붙음). Vue 버전은 mode prop으로 명시적으로 나눈다.
-function pad(v) {
+type TimeField = "year" | "month" | "date" | "hours" | "minutes"
+interface TimeValue {
+    year?: number
+    month?: number
+    date?: number
+    hours?: number
+    minutes?: number
+}
+
+function pad(v: number) {
     return v < 10 ? `0${v}` : `${v}`
 }
 
-function daysInMonth(year, month) {
+function daysInMonth(year: number, month: number) {
     return new Date(year, month, 0).getDate()
 }
 
 const now = new Date()
 
-const props = defineProps({
-    mode: {
-        type: String,
-        default: "date" // date(year/month/date) | time(hours/minutes, 위아래 스피너 포함)
-    },
-    modelValue: {
-        // date 모드: { year, month, date } / time 모드: { hours, minutes }
-        type: Object,
-        default: undefined
-    },
-    minYear: {
-        type: Number,
-        default: 2015
-    },
-    maxYear: {
-        type: Number,
-        default: 2020
-    },
-    size: {
-        type: String,
-        default: "normal" // large | normal | small | mini
+const props = withDefaults(
+    defineProps<{
+        /** date(year/month/date) | time(hours/minutes, 위아래 스피너 포함). */
+        mode?: "date" | "time"
+        /** date 모드: { year, month, date } / time 모드: { hours, minutes }. */
+        modelValue?: TimeValue
+        minYear?: number
+        maxYear?: number
+        size?: "large" | "normal" | "small" | "mini"
+    }>(),
+    {
+        mode: "date",
+        modelValue: undefined,
+        minYear: 2015,
+        maxYear: 2020,
+        size: "normal"
     }
-})
+)
 
-const emit = defineEmits(["update:modelValue", "change"])
+const emit = defineEmits<{
+    "update:modelValue": [value: TimeValue]
+    change: [value: TimeValue]
+}>()
 
-function defaultValue() {
+function defaultValue(): TimeValue {
     return props.mode === "date"
         ? { year: now.getFullYear(), month: now.getMonth() + 1, date: now.getDate() }
         : { hours: now.getHours(), minutes: now.getMinutes() }
 }
 
-const internal = ref({ ...defaultValue(), ...props.modelValue })
+const internal = ref<TimeValue>({ ...defaultValue(), ...props.modelValue })
 watch(
     () => props.modelValue,
     (v) => {
@@ -55,16 +62,16 @@ watch(
     { deep: true }
 )
 
-function range(field) {
+function range(field: TimeField): [number, number] {
     if (field === "year") return [props.minYear, props.maxYear]
     if (field === "month") return [1, 12]
-    if (field === "date") return [1, daysInMonth(internal.value.year, internal.value.month)]
+    if (field === "date") return [1, daysInMonth(internal.value.year!, internal.value.month!)]
     if (field === "hours") return [0, 23]
     if (field === "minutes") return [0, 59]
     return [0, 99]
 }
 
-function clamp(field, value) {
+function clamp(field: TimeField, value: number) {
     const [min, max] = range(field)
     if (Number.isNaN(value)) return min
     if (value > max) return max
@@ -77,43 +84,43 @@ function commit() {
     emit("change", { ...internal.value })
 }
 
-function setField(field, value, { silent } = {}) {
+function setField(field: TimeField, value: number, { silent }: { silent?: boolean } = {}) {
     internal.value = { ...internal.value, [field]: clamp(field, value) }
     if (!silent) commit()
 }
 
-const focusedField = ref(props.mode === "date" ? "year" : "hours")
+const focusedField = ref<TimeField>(props.mode === "date" ? "year" : "hours")
 
-function onFocus(field) {
+function onFocus(field: TimeField) {
     focusedField.value = field
 }
 
-function onKeyup(field, e) {
+function onKeyup(field: TimeField, e: KeyboardEvent) {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
     const dist = e.key === "ArrowUp" ? 1 : -1
     setField(field, (internal.value[field] || 0) + dist, { silent: true })
 }
 
-function onBlur(field, e) {
-    const value = parseInt(e.target.value, 10)
+function onBlur(field: TimeField, e: FocusEvent) {
+    const value = parseInt((e.target as HTMLInputElement).value, 10)
     setField(field, value)
 }
 
-function onSpin(dist) {
+function onSpin(dist: number) {
     setField(focusedField.value, (internal.value[focusedField.value] || 0) + dist)
 }
 
-const fields = computed(() => (props.mode === "date" ? ["year", "month", "date"] : ["hours", "minutes"]))
+const fields = computed<TimeField[]>(() => (props.mode === "date" ? ["year", "month", "date"] : ["hours", "minutes"]))
 
-function maxlength(field) {
+function maxlength(field: TimeField) {
     return field === "year" ? 4 : 2
 }
 
 /** 원본 getYear/getMonth/.../setYear/setMonth/... 대응 */
-function makeAccessor(field) {
+function makeAccessor(field: TimeField) {
     return {
         get: () => internal.value[field],
-        set: (v) => setField(field, v)
+        set: (v: number) => setField(field, v)
     }
 }
 defineExpose({
@@ -133,7 +140,7 @@ defineExpose({
                 type="text"
                 :class="field"
                 :maxlength="maxlength(field)"
-                :value="field === 'year' ? internal.year : pad(internal[field])"
+                :value="field === 'year' ? internal.year : pad(internal[field] ?? 0)"
                 @focus="onFocus(field)"
                 @keyup="onKeyup(field, $event)"
                 @blur="onBlur(field, $event)"

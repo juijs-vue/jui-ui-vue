@@ -1,52 +1,44 @@
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue"
 
 // 원본(src/components/numberchecker.js)은 `numberchecker("input", opts)`처럼
 // 마크업의 input 하나(또는 매치된 각각)에 유효성 검사를 붙이는 방식이었다.
 // Vue 버전은 컴포넌트 하나 = input 하나로, 여러 개 필요하면 v-for로 반복해서 쓴다.
-const props = defineProps({
-    modelValue: {
-        type: [Number, String],
-        default: null
-    },
-    integer: {
-        type: Boolean,
-        default: true
-    },
-    min: {
-        // null이면 제한 없음
-        type: [Number, String],
-        default: null
-    },
-    max: {
-        type: [Number, String],
-        default: null
-    },
-    empty: {
-        // 값이 비거나 잘못됐을 때 blur 시 되돌릴 대상 — "min" | "max" | "value" | null(=invalid 상태로 표시)
-        type: String,
-        default: null
-    },
-    message: {
-        // invalid 상태일 때 보여줄 placeholder
-        type: String,
-        default: "Invalid number"
-    },
-    size: {
-        type: String,
-        default: "normal" // large | normal | small | mini
+const props = withDefaults(
+    defineProps<{
+        modelValue?: number | string | null
+        integer?: boolean
+        /** null이면 제한 없음. */
+        min?: number | string | null
+        max?: number | string | null
+        /** 값이 비거나 잘못됐을 때 blur 시 되돌릴 대상 - null이면 invalid 상태로 표시. */
+        empty?: "min" | "max" | "value" | null
+        /** invalid 상태일 때 보여줄 placeholder. */
+        message?: string
+        size?: "large" | "normal" | "small" | "mini"
+    }>(),
+    {
+        modelValue: null,
+        integer: true,
+        min: null,
+        max: null,
+        empty: null,
+        message: "Invalid number",
+        size: "normal"
     }
-})
+)
 
-const emit = defineEmits(["update:modelValue"])
+const emit = defineEmits<{
+    "update:modelValue": [value: number]
+}>()
 
-function isValidNumber(value) {
+function isValidNumber(value: string) {
     const regex = props.integer ? /^[-]?\d+$/ : /^[-]?\d+(?:[.]\d+)?$/
     return regex.test(value)
 }
 
-function toNumber(value) {
-    return props.integer ? parseInt(value, 10) : parseFloat(value)
+function toNumber(value: number | string) {
+    return props.integer ? parseInt(value as string, 10) : parseFloat(value as string)
 }
 
 function hasMin() {
@@ -74,11 +66,11 @@ function onInput() {
     const value = toNumber(display.value)
 
     if (hasMin() && hasMax()) {
-        if (value >= toNumber(props.min) && value <= toNumber(props.max)) emit("update:modelValue", value)
+        if (value >= toNumber(props.min!) && value <= toNumber(props.max!)) emit("update:modelValue", value)
     } else if (hasMin() && !hasMax()) {
-        if (value >= toNumber(props.min)) emit("update:modelValue", value)
+        if (value >= toNumber(props.min!)) emit("update:modelValue", value)
     } else if (!hasMin() && hasMax()) {
-        if (value <= toNumber(props.max)) emit("update:modelValue", value)
+        if (value <= toNumber(props.max!)) emit("update:modelValue", value)
     } else {
         emit("update:modelValue", value)
     }
@@ -104,8 +96,8 @@ function onBlur() {
     }
 
     let value = toNumber(display.value)
-    if (hasMin() && value < toNumber(props.min)) value = toNumber(props.min)
-    else if (hasMax() && value > toNumber(props.max)) value = toNumber(props.max)
+    if (hasMin() && value < toNumber(props.min!)) value = toNumber(props.min!)
+    else if (hasMax() && value > toNumber(props.max!)) value = toNumber(props.max!)
 
     display.value = String(value)
     emit("update:modelValue", value)

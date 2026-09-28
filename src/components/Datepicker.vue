@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // 원본(datepicker.js)의 tpl.date/tpl.dates(마크업 템플릿 기반 셀 렌더링)는 Vue의 #cell
 // scoped slot으로 대체했다(Dropdown/Select와 동일한 방향의 단순화) — day(0=일~6=토)/type
 // (""/"now"/"active"/"none")/no(날짜·월·연도 숫자)를 슬롯 프롭으로 넘겨준다.
@@ -8,18 +8,45 @@ import { ref, computed, watch } from "vue"
 import { dateFormat } from "jui-core-ts"
 import { getStartDate, getLastDate } from "../utils/date.js"
 
-const props = defineProps({
-    type: { type: String, default: "daily" }, // 'daily' | 'monthly' | 'yearly'
-    variant: { type: String, default: "datepicker" }, // 'datepicker' | 'calendar'
-    size: { type: String, default: "normal" }, // 'normal' | 'large'
-    modelValue: { type: Date, default: null }, // v-model — 선택된 날짜
-    titleFormat: { type: String, default: "yyyy.MM" },
-    format: { type: String, default: "yyyy-MM-dd" },
-    minDate: { type: Date, default: null },
-    maxDate: { type: Date, default: null },
-    moveYear: { type: Boolean, default: false } // head에 prev-year/next-year(≪/≫) 버튼 표시
-})
-const emit = defineEmits(["update:modelValue", "select", "prev", "next", "reload"])
+interface DateCell {
+    type: string
+    no: number
+    day?: number
+}
+
+const props = withDefaults(
+    defineProps<{
+        type?: "daily" | "monthly" | "yearly"
+        variant?: "datepicker" | "calendar"
+        size?: "normal" | "large"
+        /** v-model - 선택된 날짜. */
+        modelValue?: Date | null
+        titleFormat?: string
+        format?: string
+        minDate?: Date | null
+        maxDate?: Date | null
+        /** head에 prev-year/next-year(≪/≫) 버튼 표시. */
+        moveYear?: boolean
+    }>(),
+    {
+        type: "daily",
+        variant: "datepicker",
+        size: "normal",
+        modelValue: null,
+        titleFormat: "yyyy.MM",
+        format: "yyyy-MM-dd",
+        minDate: null,
+        maxDate: null,
+        moveYear: false
+    }
+)
+const emit = defineEmits<{
+    "update:modelValue": [value: Date]
+    select: [formatted: string, date: Date]
+    prev: []
+    next: []
+    reload: []
+}>()
 
 function today() {
     return getStartDate(new Date())
@@ -30,11 +57,11 @@ function today() {
 // 미리 선택된 채 시작한다("active"). 그리고 오늘 셀은 "now"와 "active" 조건이 둘 다 참이면
 // 두 클래스를 함께 받는다(class="now active" - 실제 운영 사이트 렌더 결과로 확인됨). 단일
 // type 문자열로 덮어쓰면 이 조합이 나올 수 없어서, 여기서는 배열로 모아 공백 join한다.
-const selDate = ref(props.modelValue ? getStartDate(props.modelValue) : today())
+const selDate = ref<Date>(props.modelValue ? getStartDate(props.modelValue) : today())
 const viewYear = ref(selDate.value.getFullYear())
 const viewMonth = ref(selDate.value.getMonth() + 1)
 
-function checkDate(y, m, d) {
+function checkDate(y: number, m: number, d: number): [number, number, number] {
     if (props.minDate) {
         const minY = props.minDate.getFullYear(),
             minM = props.minDate.getMonth() + 1,
@@ -50,8 +77,8 @@ function checkDate(y, m, d) {
     return [y, m, d]
 }
 
-function getDateList(y, m) {
-    const cells = []
+function getDateList(y: number, m: number): DateCell[] {
+    const cells: DateCell[] = []
     let no = 1
     const d = new Date()
     const mm = m < 10 ? "0" + m : String(m)
@@ -98,9 +125,9 @@ function getDateList(y, m) {
     return cells
 }
 
-function getMonthList(y) {
+function getMonthList(y: number): DateCell[] {
     const d = new Date()
-    const cells = []
+    const cells: DateCell[] = []
     for (let i = 1; i <= 12; i++) {
         const classes = []
         if (d.getFullYear() === y && d.getMonth() + 1 === i) classes.push("now")
@@ -110,9 +137,9 @@ function getMonthList(y) {
     return cells
 }
 
-function getYearList(y) {
+function getYearList(y: number): DateCell[] {
     const d = new Date()
-    const cells = []
+    const cells: DateCell[] = []
     const startYear = y - 4
     for (let i = startYear; i < startYear + 12; i++) {
         const classes = []
@@ -156,18 +183,18 @@ const title = computed(() => {
     return dateFormat(getStartDate(d), props.titleFormat)
 })
 
-function page(y, m) {
+function page(y: number, m?: number) {
     if (props.type === "daily") {
         viewYear.value = y
-        viewMonth.value = m
+        viewMonth.value = m as number
     } else {
         viewYear.value = y
     }
 }
 
-function prev(moveYearFlag) {
+function prev(moveYearFlag?: boolean) {
     if (props.type === "daily") {
-        let y, m
+        let y: number, m: number
         if (moveYearFlag) {
             y = viewYear.value - 1
             m = viewMonth.value
@@ -187,9 +214,9 @@ function prev(moveYearFlag) {
     emit("prev")
 }
 
-function next(moveYearFlag) {
+function next(moveYearFlag?: boolean) {
     if (props.type === "daily") {
-        let y, m
+        let y: number, m: number
         if (moveYearFlag) {
             y = viewYear.value + 1
             m = viewMonth.value
@@ -209,7 +236,7 @@ function next(moveYearFlag) {
     emit("next")
 }
 
-function selectCell(cell) {
+function selectCell(cell: DateCell) {
     if (cell.type === "none") return
 
     if (props.type === "daily") {
@@ -227,17 +254,20 @@ function selectCell(cell) {
     emit("select", getFormat(), selDate.value)
 }
 
-function select(yOrDate, m, d) {
+function select(): void
+function select(dateOrTimestamp: Date | number | string): void
+function select(y: number, m: number, d: number): void
+function select(yOrDate?: number | Date | string, m?: number, d?: number) {
     let y = viewYear.value,
         mm = viewMonth.value,
         dd = selDate.value ? selDate.value.getDate() : 1
 
     if (arguments.length === 3) {
-        y = yOrDate
-        mm = m
-        dd = d
+        y = yOrDate as number
+        mm = m as number
+        dd = d as number
     } else if (arguments.length === 1) {
-        const time = yOrDate instanceof Date ? yOrDate : new Date(yOrDate)
+        const time = yOrDate instanceof Date ? yOrDate : new Date(yOrDate as number | string)
         y = time.getFullYear()
         mm = time.getMonth() + 1
         dd = time.getDate()
@@ -261,7 +291,7 @@ function select(yOrDate, m, d) {
     }
 }
 
-function addTime(time) {
+function addTime(time: Date | number) {
     const base = selDate.value ? selDate.value.getTime() : Date.now()
     const t = time instanceof Date ? time.getTime() : base + time
     select(new Date(t))
@@ -273,7 +303,7 @@ function getDate() {
 function getTime() {
     return selDate.value ? selDate.value.getTime() : null
 }
-function getFormat(format) {
+function getFormat(format?: string) {
     return dateFormat(selDate.value, typeof format === "string" ? format : props.format)
 }
 function reload() {

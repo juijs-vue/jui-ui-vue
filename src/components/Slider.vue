@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 // 원본(slider.js)은 jui.include("util.math")(juijs 코어의 정밀 산술 유틸, 이 리포에
 // vendoring 안 됨)로 step 스냅 시 부동소수점 오차를 피했다 — 같은 목적을 stepValue()에서
 // step의 소수 자릿수만큼 반올림하는 방식으로 재구현했다.
@@ -6,28 +6,50 @@
 // 다뤘는데, Vue 버전은 from/to를 각각 v-model:from / v-model:to로 노출해 선언적으로 쓸 수
 // 있게 하면서, 동일한 이름의 명령형 메서드도 그대로 노출한다.
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from "vue"
+import type { CSSProperties } from "vue"
 
-const props = defineProps({
-    type: { type: String, default: "single" }, // 'single' | 'double'
-    orient: { type: String, default: "horizontal" }, // 'horizontal' | 'vertical'
-    min: { type: Number, default: 0 },
-    max: { type: Number, default: 10 },
-    step: { type: Number, default: 1 },
-    from: { type: Number, default: 0 }, // v-model:from
-    to: { type: Number, default: 10 }, // v-model:to (double일 때만 사용)
-    tooltip: { type: Boolean, default: true },
-    progress: { type: Boolean, default: true },
-    format: { type: Function, default: null }
-})
-const emit = defineEmits(["update:from", "update:to", "change"])
+type SliderHandle = "from" | "to"
+
+const props = withDefaults(
+    defineProps<{
+        type?: "single" | "double"
+        orient?: "horizontal" | "vertical"
+        min?: number
+        max?: number
+        step?: number
+        /** v-model:from. */
+        from?: number
+        /** v-model:to (double일 때만 사용). */
+        to?: number
+        tooltip?: boolean
+        progress?: boolean
+        format?: ((value: number) => string | number) | null
+    }>(),
+    {
+        type: "single",
+        orient: "horizontal",
+        min: 0,
+        max: 10,
+        step: 1,
+        from: 0,
+        to: 10,
+        tooltip: true,
+        progress: true,
+        format: null
+    }
+)
+const emit = defineEmits<{
+    "update:from": [value: number]
+    "update:to": [value: number]
+    change: [payload: { type: SliderHandle; from: number; to: number }]
+}>()
 
 const isDouble = computed(() => props.type === "double")
 const isVertical = computed(() => props.orient === "vertical")
 
-const rootEl = ref(null)
-const trackEl = ref(null)
-const fromTooltipEl = ref(null)
-const toTooltipEl = ref(null)
+const trackEl = ref<HTMLElement | null>(null)
+const fromTooltipEl = ref<HTMLElement | null>(null)
+const toTooltipEl = ref<HTMLElement | null>(null)
 
 // 원본은 초기화 시 setFromValue() -> setToValue() 순서로 호출되는데, 이때 checkMaxFromTo()가
 // 아직 그려지지 않은 반대쪽 핸들의 CSS 값을 읽어 parseFloat(undefined)=NaN을 얻고, NaN과의
@@ -35,19 +57,19 @@ const toTooltipEl = ref(null)
 // 그대로 재현한다(0으로 시작하면 setFromValue()가 아직 계산 전인 toDist=0에 걸려 clamp되어버림).
 const fromDist = ref(NaN) // 0~100(%)
 const toDist = ref(NaN)
-const fromMessage = ref("")
-const toMessage = ref("")
-const fromTooltipClass = ref({})
-const toTooltipClass = ref({})
-const fromTooltipStyle = ref({})
-const toTooltipStyle = ref({})
+const fromMessage = ref<string | number>("")
+const toMessage = ref<string | number>("")
+const fromTooltipClass = ref<Record<string, boolean>>({})
+const toTooltipClass = ref<Record<string, boolean>>({})
+const fromTooltipStyle = ref<CSSProperties>({})
+const toTooltipStyle = ref<CSSProperties>({})
 const showTooltip = ref(false)
-const selecting = ref(null) // 'from' | 'to' | null
+const selecting = ref<SliderHandle | null>(null)
 
-let preFromValue
-let preToValue
+let preFromValue: number | undefined
+let preToValue: number | undefined
 
-function stepValue(value) {
+function stepValue(value: number) {
     const step = props.step
     const remain = value % step
     let result = value - remain
@@ -56,19 +78,19 @@ function stepValue(value) {
     return Number(result.toFixed(decimals))
 }
 
-function distToValue(dist) {
+function distToValue(dist: number) {
     const raw = props.min + (props.max - props.min) * dist
     return stepValue(raw)
 }
 
-function checkMaxFromTo(dist, type) {
+function checkMaxFromTo(dist: number, type: SliderHandle) {
     if (!isDouble.value) return dist
     if (type === "from" && dist >= toDist.value) return toDist.value
     if (type === "to" && dist <= fromDist.value) return fromDist.value
     return dist
 }
 
-async function setViewStatus(distPercent, type, suppressChange) {
+async function setViewStatus(distPercent: number, type: SliderHandle, suppressChange?: boolean) {
     let value = distToValue(distPercent / 100)
     if (value < props.min) value = props.min
     if (value > props.max) value = props.max
@@ -81,7 +103,7 @@ async function setViewStatus(distPercent, type, suppressChange) {
     else toDist.value = dist
 
     if (props.tooltip) {
-        let displayValue = value
+        let displayValue: string | number = value
         if (typeof props.format === "function") displayValue = props.format(value)
 
         if (type === "from") fromMessage.value = displayValue
@@ -109,7 +131,7 @@ async function setViewStatus(distPercent, type, suppressChange) {
     }
 }
 
-function positionTooltip(type, dist) {
+function positionTooltip(type: SliderHandle, dist: number) {
     const tooltipEl = type === "from" ? fromTooltipEl.value : toTooltipEl.value
     const styleRef = type === "from" ? fromTooltipStyle : toTooltipStyle
     const classRef = type === "from" ? fromTooltipClass : toTooltipClass
@@ -142,10 +164,10 @@ function positionTooltip(type, dist) {
     }
 }
 
-function setHandlePosition(e, type) {
+function setHandlePosition(e: MouseEvent, type: SliderHandle) {
     if (!trackEl.value) return
     const rect = trackEl.value.getBoundingClientRect()
-    let dist
+    let dist: number
 
     if (isVertical.value) {
         const min = rect.top
@@ -166,11 +188,11 @@ function setHandlePosition(e, type) {
     setViewStatus(dist, type)
 }
 
-function onHandleMouseDown(type) {
+function onHandleMouseDown(type: SliderHandle) {
     selecting.value = type
     document.body.classList.add("slider-cursor")
 }
-function onTrackMouseDown(e) {
+function onTrackMouseDown(e: MouseEvent) {
     document.body.classList.add("slider-cursor")
     if (!isDouble.value) {
         selecting.value = "from"
@@ -181,7 +203,7 @@ function onDocMouseUp() {
     selecting.value = null
     document.body.classList.remove("slider-cursor")
 }
-function onDocMouseMove(e) {
+function onDocMouseMove(e: MouseEvent) {
     if (selecting.value === "from") setHandlePosition(e, "from")
     else if (selecting.value === "to") setHandlePosition(e, "to")
 }
@@ -192,11 +214,11 @@ function getFromValue() {
 function getToValue() {
     return isDouble.value ? distToValue(toDist.value / 100) : getFromValue()
 }
-function setFromValue(value, suppressChange) {
+function setFromValue(value?: number, suppressChange?: boolean) {
     const from = value !== undefined ? value : props.from
     return setViewStatus(((from - props.min) / (props.max - props.min)) * 100, "from", suppressChange)
 }
-function setToValue(value, suppressChange) {
+function setToValue(value?: number, suppressChange?: boolean) {
     if (!isDouble.value) return
     const to = value !== undefined ? value : props.to
     return setViewStatus(((to - props.min) / (props.max - props.min)) * 100, "to", suppressChange)
@@ -218,7 +240,7 @@ watch([() => props.min, () => props.max, () => props.step, () => props.type], ()
     setToValue(getToValue())
 })
 
-const progressStyle = computed(() => {
+const progressStyle = computed<CSSProperties>(() => {
     if (!isDouble.value) {
         // height를 명시해야 한다 - 안 그러면 .track .progress의 공용 height:100% 기본값이
         // 인라인 top과 함께 남아 있어서(over-constrained일 때 height가 이긴다) 트랙 밖으로 넘친다.
@@ -228,14 +250,14 @@ const progressStyle = computed(() => {
         ? { top: fromDist.value + "%", height: toDist.value - fromDist.value + "%" }
         : { width: toDist.value - fromDist.value + "%", left: fromDist.value + "%" }
 })
-const fromHandleStyle = computed(() => (isVertical.value ? { top: fromDist.value + "%" } : { left: fromDist.value + "%" }))
-const toHandleStyle = computed(() => (isVertical.value ? { top: toDist.value + "%" } : { left: toDist.value + "%" }))
+const fromHandleStyle = computed<CSSProperties>(() => (isVertical.value ? { top: fromDist.value + "%" } : { left: fromDist.value + "%" }))
+const toHandleStyle = computed<CSSProperties>(() => (isVertical.value ? { top: toDist.value + "%" } : { left: toDist.value + "%" }))
 
 defineExpose({ setFromValue, setToValue, getFromValue, getToValue })
 </script>
 
 <template>
-    <div ref="rootEl" class="slider" :class="[orient, { 'has-tooltip': tooltip }]">
+    <div class="slider" :class="[orient, { 'has-tooltip': tooltip }]">
         <div ref="trackEl" class="track" @mousedown="onTrackMouseDown">
             <div v-if="progress" class="progress" :style="progressStyle"></div>
             <div class="handle from" :style="fromHandleStyle" @mousedown.stop="onHandleMouseDown('from')"></div>

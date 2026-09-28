@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { watch } from "vue"
 
 // 원본(modal.js)은 target의 크기를 getBoundingClientRect 등으로 직접 재서 모달을 가운데
@@ -14,42 +14,38 @@ import { watch } from "vue"
 // target" 경고 + 이후 조작 시 크래시) — body처럼 진짜 정적인 대상만 Teleport로 보내고,
 // "이너 모달"은 아예 Teleport 없이 제자리에서 position:absolute로 그린다. 이 경우 소비자가
 // Modal을 원하는 컨테이너 안(또는 바로 옆, 그 컨테이너가 position:relative)에 두기만 하면 된다.
-const props = defineProps({
-    modelValue: {
-        // 표시 여부(v-model)
-        type: Boolean,
-        default: false
-    },
-    fixed: {
-        // true: body 기준 전역 모달(Teleport + position:fixed). false: 제자리에서
-        // position:absolute로 그려지는 이너 모달 — 감싸는 컨테이너가 position:relative여야 한다.
-        type: Boolean,
-        default: true
-    },
-    color: {
-        type: String,
-        default: "black"
-    },
-    opacity: {
-        type: Number,
-        default: 0.4
-    },
-    autoHide: {
-        // 배경을 클릭하면 자동으로 닫힘
-        type: Boolean,
-        default: true
-    },
-    index: {
-        type: Number,
-        default: 0
+const props = withDefaults(
+    defineProps<{
+        /** 표시 여부(v-model). */
+        modelValue?: boolean
+        /** true: body 기준 전역 모달(Teleport + position:fixed). false: 제자리에서
+         * position:absolute로 그려지는 이너 모달 - 감싸는 컨테이너가 position:relative여야 한다. */
+        fixed?: boolean
+        color?: string
+        opacity?: number
+        /** 배경을 클릭하면 자동으로 닫힘. */
+        autoHide?: boolean
+        index?: number
+    }>(),
+    {
+        modelValue: false,
+        fixed: true,
+        color: "black",
+        opacity: 0.4,
+        autoHide: true,
+        index: 0
     }
-})
+)
 
-const emit = defineEmits(["update:modelValue", "show", "hide"])
+const emit = defineEmits<{
+    "update:modelValue": [value: boolean]
+    show: []
+    hide: []
+}>()
 
 watch(
     () => props.modelValue,
-    (v) => emit(v ? "show" : "hide")
+    (v) => (v ? emit("show") : emit("hide"))
 )
 
 function show() {
