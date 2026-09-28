@@ -13,17 +13,29 @@ const props = withDefaults(
     defineProps<{
         /** 표시 여부(v-model). */
         modelValue?: boolean
+        /** 초기(및 현재) 너비(px). resize 드래그나 setSize()로 바뀐다. 기본값 400. */
         width?: number
+        /** 초기(및 현재) 높이(px). resize 드래그나 setSize()로 바뀐다. 기본값 300. */
         height?: number
+        /** 초기 왼쪽 위치. "auto"거나 px 숫자/문자열. modal=true이고 left/top이 모두 "auto"면 화면 중앙에 오도록 자동 계산된다. 드래그로 이동하면 right/bottom은 "auto"로 리셋되고 이쪽이 기준이 된다. 기본값 "auto". */
         left?: string | number
+        /** 초기 위쪽 위치. left와 동일한 규칙(모달 중앙 정렬, 드래그 시 bottom 리셋)을 따른다. 기본값 "auto". */
         top?: string | number
+        /** 초기 오른쪽 위치. left/top이 "auto"가 아닌 한 실제로 적용되며, 드래그가 시작되면 "auto"로 리셋된다. 기본값 "auto". */
         right?: string | number
+        /** 초기 아래쪽 위치. right와 동일하게 드래그가 시작되면 "auto"로 리셋된다. 기본값 "auto". */
         bottom?: string | number
+        /** #title 슬롯을 쓰지 않을 때 헤더에 표시할 제목. 기본값 "". */
         title?: string
+        /** true면 뒤에 반투명 backdrop을 깔고, move/resize를 강제로 비활성화하며(canMove/canResize 모두 false), left/top이 "auto"면 화면 중앙에 뜨도록 초기 위치를 계산한다. 기본값 false. */
         modal?: boolean
+        /** 헤더를 드래그해 창을 옮길 수 있는지 여부. modal=true일 때는 이 값과 무관하게 항상 이동이 막힌다. 기본값 true. */
         move?: boolean
+        /** 우하단 핸들로 창 크기를 조절할 수 있는지 여부. modal=true일 때는 이 값과 무관하게 항상 리사이즈가 막힌다. 기본값 true. */
         resize?: boolean
+        /** modal=true일 때 backdrop(5000+modalIndex)과 창(5001+modalIndex) 자체의 z-index 기준값 - 모달 창을 여러 개 겹쳐 띄울 때 순서를 구분하는 데 쓴다. modal=false면 쓰이지 않는다. 기본값 0. */
         modalIndex?: number
+        /** modal=false일 때의 초기 z-index. 창 위에서 mousedown하면(onFocus) 1씩 증가해 다른 비모달 창보다 위로 올라온다. 기본값 2000. */
         layerIndex?: number
     }>(),
     {
@@ -44,10 +56,15 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** v-model 동기화용 - show()/hide()(닫기 버튼 클릭 포함) 호출 시 발생한다. */
     "update:modelValue": [value: boolean]
+    /** modelValue가 true로 바뀔 때 발생한다. */
     show: []
+    /** modelValue가 false로 바뀔 때 발생한다. */
     hide: []
+    /** 헤더 드래그로 창을 옮기던 중 마우스를 뗐을 때(드래그 종료 시 1회) 발생하며, 원본 MouseEvent를 전달한다. */
     move: [e: MouseEvent]
+    /** 리사이즈 핸들 드래그 중 마우스를 뗐을 때(드래그 종료 시 1회) 발생하며, 원본 MouseEvent를 전달한다. */
     resize: [e: MouseEvent]
 }>()
 

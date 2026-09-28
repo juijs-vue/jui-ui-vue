@@ -18,10 +18,15 @@ const patterns: Record<PatternName, RegExp> = {
 
 const props = withDefaults(
     defineProps<{
+        /** 현재 값. blur 시 유효성 검사를 통과했을 때만 갱신되어 emit된다. 기본값 "". */
         modelValue?: string
+        /** true면 `{"key":"<value>"}` 형태로 JSON.parse를 시도해 실패 시 즉시 무효 처리한다(placeholder만 남기고 입력을 비움). 기본값 true. */
         validJson?: boolean
+        /** true일 때 값이 공백뿐이면 "blank" invalid 이벤트만 발생시킨다 - 원본과 동일하게 실제로 입력을 막지는 않는다. 기본값 false. */
         validBlank?: boolean
+        /** 이 길이보다 짧으면 "min" invalid 이벤트만 발생시킨다(막지는 않음). pattern이 지정되어 있으면 이 검사는 건너뛴다. -1이면 검사하지 않는다. 기본값 -1. */
         minLength?: number
+        /** 이 길이보다 길면 "max" invalid 이벤트만 발생시킨다(막지는 않음). pattern이 지정되어 있으면 이 검사는 건너뛴다. -1이면 검사하지 않는다. 기본값 -1. */
         maxLength?: number
         /** "email" | "url" | "color" | RegExp | null. */
         pattern?: string | RegExp | null
@@ -30,6 +35,7 @@ const props = withDefaults(
         /** 원본은 emit("invalid", ...)의 리턴값으로 placeholder를 오버라이드했는데(핸들러가 return type
          * 하는 방식), Vue emit은 리턴값을 못 받으니 그 대신 함수 prop으로 받는다: (type, value) => string. */
         invalidMessage?: ((type: string | null, value: string) => string) | null
+        /** 입력창 크기를 나타내는 클래스 문자열. 기본값 "normal". */
         size?: string
     }>(),
     {
@@ -46,7 +52,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** blur 시 유효성 검사(validJson/pattern)를 통과했을 때만 발생한다 - 타이핑 중(input)에는 발생하지 않는다. */
     "update:modelValue": [value: string]
+    /** blur 시 유효성 검사에 실패했을 때(또는 validBlank/minLength/maxLength 위반 시, 이때는 막지는 않고 이 이벤트만) 발생한다. type은 실패 사유("json" | "blank" | pattern 종류 | "min" | "max")이고 value는 그 시점의 입력값이다. */
     invalid: [type: string | null, value: string]
 }>()
 

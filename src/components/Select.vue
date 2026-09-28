@@ -5,10 +5,15 @@ import { ref, computed, onMounted, onBeforeUnmount } from "vue"
 // 바깥을 클릭하면 닫힌다. text/html이 함수일 수도 있는 원본 렌더러 규칙을 그대로 옮겼다.
 type SelectValue = string | number
 interface SelectItemObject {
+    /** 항목의 값. divider 항목처럼 값이 없을 수도 있으며, 그 경우 선택 판정(isSelected)에서 항상 제외된다. */
     value?: SelectValue
+    /** 항목에 표시할 텍스트. 함수로 주면 this가 이 아이템 객체로 바인딩되어 호출된 결과가 표시된다. */
     text?: string | ((this: SelectItemObject) => string)
+    /** text 대신 HTML을 그대로 삽입하고 싶을 때 사용(v-html로 렌더링, 지정되면 text보다 우선함). 신뢰할 수 없는 소스라면 호출 측에서 sanitize된 값만 넘겨야 한다. */
     html?: string | ((this: SelectItemObject) => string)
+    /** "divider"면 클릭할 수 없는 구분선(hr)으로 렌더링되고 선택/클릭이 모두 무시된다. */
     type?: "divider"
+    /** modelValue를 지정하지 않았을 때만 초기 선택값을 결정하는 데 쓰인다(modelValue가 있으면 무시됨). */
     selected?: boolean
 }
 type SelectItem = string | SelectItemObject
@@ -19,9 +24,13 @@ const props = withDefaults(
         items?: SelectItem[]
         /** multi=false: value 하나 / multi=true: value 배열. */
         modelValue?: SelectValue | SelectValue[]
+        /** 다중 선택 여부. true면 값이 배열이 되고 항목 클릭마다 선택/해제가 토글된다. 기본값 false. */
         multi?: boolean
+        /** 아무 항목도 선택되지 않았을 때 title 영역에 표시할 문구. 기본값 "Select a item". */
         placeholder?: string
+        /** 드롭다운 items 목록의 좌우 정렬(select-left/select-right 클래스). 기본값 "left". */
         align?: "left" | "right"
+        /** 드롭다운 items 목록이 title 기준 위/아래 어느 쪽으로 펼쳐질지(select-top/select-bottom 클래스). 기본값 "top". */
         valign?: "top" | "bottom"
     }>(),
     {
@@ -35,7 +44,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** v-model 동기화용 - 항목 클릭이나 setValue/setSelectedIndex 호출로 값이 바뀔 때 발생한다. */
     "update:modelValue": [value: SelectValue | SelectValue[]]
+    /** update:modelValue와 같은 시점에 함께 발생하며, 새 값과 변경 전 값(prevValue, 최초 선택 시엔 undefined)을 같이 전달한다. */
     change: [value: SelectValue | SelectValue[], prevValue: SelectValue | SelectValue[] | undefined]
 }>()
 

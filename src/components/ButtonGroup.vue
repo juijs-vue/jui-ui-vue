@@ -2,23 +2,30 @@
 import { ref, computed } from "vue"
 
 interface ButtonGroupItem {
+    /** 버튼에 표시할 라벨. icon만 주고 text를 생략하면 아이콘 전용 버튼이 된다. */
     text?: string
+    /** 버튼의 고유 값 - modelValue/index 매핑, change/click 이벤트 payload에 쓰인다. */
     value: string | number
+    /** 이 버튼만 개별적으로 비활성화한다. 그룹 전체를 끄는 props.disabled와는 OR 조건으로 합쳐져 둘 중 하나만 true여도 클릭이 무시된다. */
     disabled?: boolean
     /** "icon-" 접두사를 뺀 이름(예: "home"). text 없이 icon만 주면 아이콘 전용 버튼이 된다. */
     icon?: string
+    /** icon 클래스에 함께 붙는 추가 클래스(예: 색상/크기 변형). icon이 없으면 아무 효과가 없다. */
     iconExtra?: string
 }
 
 const props = withDefaults(
     defineProps<{
+        /** 그룹에 표시할 버튼 목록. */
         items: ButtonGroupItem[]
+        /** "radio"는 단일 선택(다른 버튼을 고르면 이전 선택은 해제), "check"는 다중 선택(클릭할 때마다 토글). 기본값 "radio". */
         type?: "radio" | "check"
         /** radio: 단일 value / check: value 배열. */
         modelValue?: string | number | (string | number)[]
         /** 원본 `opts.index` 대응 - modelValue를 안 넘겼을 때 인덱스로 초기 선택
          * (원본 UI.setup()의 기본값 index: 0과 동일하게, radio는 안 주면 0번째가 기본 선택). */
         index?: number | number[]
+        /** 버튼 크기 클래스(large/normal/small/mini). 기본값 "normal". */
         size?: "large" | "normal" | "small" | "mini"
         /** 원본 enable(isActive)에 대응 - 그룹 전체를 한번에 비활성화. */
         disabled?: boolean
@@ -33,8 +40,11 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** v-model 동기화용 - 클릭이나 setValue/setIndex로 값이 바뀔 때마다 새 값과 함께 발생한다. */
     "update:modelValue": [value: string | number | (string | number)[]]
+    /** 선택 값이 바뀔 때 발생. setValue/setIndex처럼 개별 item 없이 값을 직접 지정한 경우 payload.item은 undefined, e는 undefined가 된다. */
     change: [payload: { item: ButtonGroupItem | undefined; value: string | number | (string | number)[] }, e: MouseEvent | undefined]
+    /** 사용자가 버튼을 실제로 클릭했을 때만 발생(setValue/setIndex 같은 프로그래매틱 변경 시에는 발생하지 않음) - change와 같은 payload에 원본 MouseEvent를 함께 전달한다. */
     click: [payload: { item: ButtonGroupItem | undefined; value: string | number | (string | number)[] }, e: MouseEvent | undefined]
 }>()
 

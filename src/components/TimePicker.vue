@@ -6,10 +6,15 @@ import { ref, computed, watch } from "vue"
 // hours/minutes 둘 다 있을 때만 붙음). Vue 버전은 mode prop으로 명시적으로 나눈다.
 type TimeField = "year" | "month" | "date" | "hours" | "minutes"
 interface TimeValue {
+    /** 연도. mode="date"일 때만 사용된다. */
     year?: number
+    /** 월(1~12). mode="date"일 때만 사용된다. */
     month?: number
+    /** 일. 상한은 daysInMonth(year, month)로 계산되어 월/윤년에 따라 달라진다. mode="date"일 때만 사용된다. */
     date?: number
+    /** 시(0~23). mode="time"일 때만 사용된다. */
     hours?: number
+    /** 분(0~59). mode="time"일 때만 사용된다. */
     minutes?: number
 }
 
@@ -29,8 +34,11 @@ const props = withDefaults(
         mode?: "date" | "time"
         /** date 모드: { year, month, date } / time 모드: { hours, minutes }. */
         modelValue?: TimeValue
+        /** 연도 입력의 하한(mode="date"일 때만 의미가 있음) - 방향키/blur로 이 값 아래로 내려가지 않도록 clamp된다. 기본값 2015. */
         minYear?: number
+        /** 연도 입력의 상한(mode="date"일 때만 의미가 있음) - 방향키/blur로 이 값을 넘지 않도록 clamp된다. 기본값 2020. */
         maxYear?: number
+        /** 입력창 크기 클래스(large/normal/small/mini). 기본값 "normal". */
         size?: "large" | "normal" | "small" | "mini"
     }>(),
     {
@@ -43,7 +51,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** v-model 동기화용 - 입력 blur로 값을 확정하거나 time 모드 스피너(▲/▼)를 클릭했을 때 발생한다. 방향키(↑/↓)로 값을 미리 바꾸는 동안은 화면만 갱신되고 이 이벤트는 발생하지 않는다(다음 blur 시점에 한꺼번에 반영됨). */
     "update:modelValue": [value: TimeValue]
+    /** update:modelValue와 같은 시점에 같은 값으로 함께 발생한다. */
     change: [value: TimeValue]
 }>()
 

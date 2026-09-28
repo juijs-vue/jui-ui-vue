@@ -10,7 +10,9 @@ import type { CSSProperties } from "vue"
 // 필요해서다. input 자체의 너비 등은 따로 inputStyle prop으로 받는다.
 const props = withDefaults(
     defineProps<{
+        /** 현재 입력값(v-model). 기본값 "". */
         modelValue?: string
+        /** 자동완성 대상 전체 단어 목록 - 대소문자 구분 없이 입력값을 포함하는 항목만 드롭다운에 걸러져 표시된다. 기본값 []. */
         words?: string[]
         /** focus 시 입력값이 비어있으면 전체 목록을 보여준다. */
         showAll?: boolean
@@ -34,7 +36,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** v-model 동기화용 - 타이핑(input)할 때와 드롭다운에서 단어를 선택했을 때 모두 발생한다. */
     "update:modelValue": [value: string]
+    /** 드롭다운 목록에서 단어를 실제로 선택했을 때만 발생한다(마우스 클릭 또는 Enter) - 단순 타이핑으로는 발생하지 않는다. 선택된 단어와 그 원본 이벤트를 전달한다. */
     change: [word: string, e: MouseEvent | KeyboardEvent]
 }>()
 

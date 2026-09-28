@@ -9,12 +9,19 @@ const props = withDefaults(
     defineProps<{
         /** 원본의 title 속성/opts.title에 대응하는 툴팁 내용. */
         text?: string
+        /** 트리거 기준 툴팁이 나타나는 방향. 뷰포트 밖으로 나가면 nudge 보정으로 안쪽으로 밀어넣을 뿐 이 방향 자체는 바뀌지 않는다. 기본값 "top". */
         position?: "top" | "bottom" | "left" | "right"
+        /** 툴팁 배경색(화살표 anchor와 message 박스에 모두 적용). null이면 CSS 기본 배경색을 쓴다. 기본값 null. */
         color?: string | null
+        /** 툴팁 박스의 최대 너비(px). 내용이 이보다 좁으면 그만큼만 차지한다(width: max-content). 기본값 150. */
         width?: number
+        /** 메시지 텍스트 정렬. 기본값 "left". */
         align?: "left" | "right" | "center"
+        /** 표시 트리거가 발생한 시점부터 실제로 툴팁이 나타나기까지의 지연시간(ms). 기본값 0. */
         delay?: number
+        /** 툴팁을 보여줄 네이티브 DOM 이벤트명(예: "mouseover", "click"). hideType과 같은 값을 주면 같은 이벤트가 표시/숨김을 토글한다. 기본값 "mouseover". */
         showType?: string
+        /** 툴팁을 숨길 네이티브 DOM 이벤트명. 기본값 "mouseout". */
         hideType?: string
     }>(),
     {
@@ -30,7 +37,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** 툴팁이 실제로 화면에 나타난 직후 발생한다(delay 이후, 뷰포트 보정 전). text가 빈 문자열이면 애초에 표시되지 않아 발생하지 않는다. 트리거를 일으킨 원본 이벤트를 전달한다. */
     show: [e: Event]
+    /** 툴팁이 숨겨질 때 발생한다(hideType 이벤트, 또는 showType===hideType일 때 같은 이벤트로 토글되어 숨겨진 경우). 트리거를 일으킨 원본 이벤트를 전달한다. */
     hide: [e: Event]
 }>()
 const slots = useSlots()
