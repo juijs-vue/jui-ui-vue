@@ -14,6 +14,7 @@ const props = withDefaults(
         pageCount?: number
         /** 한 화면에 보여줄 페이지 번호 개수. */
         screenCount?: number
+        /** 페이지 번호/화살표의 크기. 기본값 normal. */
         size?: "normal" | "large"
     }>(),
     {
@@ -26,8 +27,14 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** 현재 페이지가 바뀔 때마다 발생(`page`/`next`/`prev`/`first`/`last`/`reload` 어느 경로든) -
+     * v-model 동기화용. */
     "update:modelValue": [value: number]
+    /** 사용자가 명시적으로 페이지를 이동했을 때(`page`/`next`/`prev`/`first`/`last` 호출, 또는
+     * 페이지 번호 클릭) 발생 - `reload()`로 1페이지로 되돌아가는 내부 리셋에서는 발생하지 않는다. */
     page: [value: number]
+    /** `reload()` 호출로 발생 - 1페이지로 되돌렸으니 그 페이지 데이터를 다시 불러오라는 신호.
+     * `reload()` 자신은 `count` prop을 갱신하지 않으므로, 새 총 개수는 호출자가 별도로 반영해야 한다. */
     reload: []
 }>()
 

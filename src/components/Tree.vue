@@ -44,13 +44,30 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** 노드가 선택됐을 때(행 클릭, 또는 `select()` API 호출) 발생. `e`는 API로 직접 호출한
+     * 경우 없을 수 있다(undefined). */
     select: [node: TreeNodeInternal, e?: Event]
+    /** 노드가 펼쳐졌을 때(토글 화살표 클릭 또는 `open()` API 호출) 발생. */
     open: [node: TreeNodeInternal, e?: Event]
+    /** 노드가 접혔을 때(토글 화살표 클릭 또는 `fold()` API 호출) 발생. */
     fold: [node: TreeNodeInternal, e?: Event]
+    /** `openAll()` 호출로 여러 노드를 한 번에 펼쳤을 때 발생. `index`를 생략(또는 null)해서
+     * 전체를 펼치면 root 노드 하나를, 특정 index를 줬는데 해당 노드를 못 찾으면 빈 배열을 담아
+     * 보낸다(찾은 경우엔 그 노드 하나). */
     openall: [node: TreeNodeInternal | TreeNodeInternal[]]
+    /** `foldAll()` 대응 - 페이로드 규칙은 `openall`과 동일(root 전체 접기 / 특정 서브트리 접기). */
     foldall: [node: TreeNodeInternal | TreeNodeInternal[]]
+    /** `drag`가 켜진 상태에서 노드 드래그가 시작될 때(mousedown) 발생. 리스너가 세 번째 인자
+     * `control.preventDefault()`를 호출하면 드래그 시작 자체가 취소된다. */
     dragstart: [node: TreeNodeInternal, e: MouseEvent, control: TreeDragControl]
+    /** 드래그 중 포인터가 다른 노드 위로 들어갈 때 발생 - `dragChild`가 `false`가 아닐 때만
+     * 발생한다(형제 재배치용 드래그 바 위를 지나가는 경우는 이 이벤트를 발생시키지 않는다).
+     * `control.preventDefault()`로 취소하면 그 노드가 hover(드롭 대상)로 표시되지 않는다. */
     dragover: [node: TreeNodeInternal, e: MouseEvent, control: TreeDragControl]
+    /** 드롭이 실제로 적용되기 직전(mouseup)에 발생 - `node`는 드롭 대상(못 찾으면 null).
+     * `control.preventDefault()`로 취소하면 `move()`가 실행되지 않는다. 단, 이 이벤트는
+     * `dragChild !== false`일 때(노드 위 직접 드롭 경로)만 발생하고, 드래그 바를 이용한
+     * 형제 재배치(`dragBarDrop`)는 이 이벤트 없이 곧바로 `move()`를 호출한다. */
     dragend: [node: TreeNodeInternal | null, e: MouseEvent, control: TreeDragControl]
 }>()
 

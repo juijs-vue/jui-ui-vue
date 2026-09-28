@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const props = withDefaults(
     defineProps<{
+        /** 스위치의 on/off 상태(v-model). true면 켜진(on) 상태로 렌더링된다. 기본값 false. */
         modelValue?: boolean
         /** examples/switch.html의 `.mini`/`.small`/`.large` 변형과 동일. */
         size?: "" | "mini" | "small" | "large"

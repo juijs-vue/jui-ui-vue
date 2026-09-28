@@ -21,10 +21,14 @@ const props = withDefaults(
         /** true: body 기준 전역 모달(Teleport + position:fixed). false: 제자리에서
          * position:absolute로 그려지는 이너 모달 - 감싸는 컨테이너가 position:relative여야 한다. */
         fixed?: boolean
+        /** 배경(backdrop)의 색상(CSS color 값). 기본값 "black". */
         color?: string
+        /** 배경의 불투명도(0~1). 기본값 0.4. */
         opacity?: number
         /** 배경을 클릭하면 자동으로 닫힘. */
         autoHide?: boolean
+        /** 겹쳐서 쓰는 모달들 사이의 쌓임 순서 보정값 - 배경 z-index는 `5000 + index`, 콘텐츠는
+         * `5001 + index`가 된다. 기본값 0. */
         index?: number
     }>(),
     {
@@ -38,8 +42,11 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** `show()`/`hide()` 호출로 표시 상태가 바뀔 때 발생 - v-model 동기화용. */
     "update:modelValue": [value: boolean]
+    /** `modelValue`가 true가 될 때(모달이 열릴 때) 발생. */
     show: []
+    /** `modelValue`가 false가 될 때(모달이 닫힐 때) 발생. */
     hide: []
 }>()
 

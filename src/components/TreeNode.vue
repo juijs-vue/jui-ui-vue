@@ -8,7 +8,11 @@ import type { TreeCtx, TreeNodeInternal } from "../types/tree"
 
 const props = withDefaults(
     defineProps<{
+        /** 이 재귀 컴포넌트 인스턴스가 그리는 트리 노드(반응형 노드 그래프의 한 자리) - Tree.vue의
+         * `makeNode()`/`reindex()`가 만들어 낸 객체를 그대로 받는다. */
         node: TreeNodeInternal
+        /** 트리의 최상위 호출인지 여부. root 노드는 leaf/open/fold 판정이 자식 노드와 달라지고
+         * (자식이 없어도 leaf 취급하지 않음), `rootHide`가 켜져 있으면 자기 행을 숨긴다. */
         isRoot?: boolean
     }>(),
     { isRoot: false }
@@ -17,6 +21,8 @@ const props = withDefaults(
 const ctx = inject<TreeCtx>("treeCtx")!
 
 defineSlots<{
+    /** 노드 한 줄(제목 영역)의 커스텀 렌더링. 기본 내용(아이콘 + `node.data.title`) 대신 쓰인다 -
+     * 각 자식 TreeNode에도 그대로 전달돼(재귀) 트리 전체에 같은 커스텀 렌더링이 적용된다. */
     default(props: { node: { index: string | null; data: TreeNodeInternal["data"]; depth: number } }): unknown
 }>()
 

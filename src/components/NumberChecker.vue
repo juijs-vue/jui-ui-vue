@@ -6,15 +6,20 @@ import { ref } from "vue"
 // Vue 버전은 컴포넌트 하나 = input 하나로, 여러 개 필요하면 v-for로 반복해서 쓴다.
 const props = withDefaults(
     defineProps<{
+        /** 현재 값(v-model). 초기 렌더 시 이 값으로 입력창 표시 문자열을 채우는데, 유효한
+         * 숫자 형식이 아니면(null 포함) 처음부터 invalid 상태 + `message` placeholder로 시작한다. */
         modelValue?: number | string | null
+        /** true(기본)면 정수(`-?\d+`)만, false면 소수(`-?\d+(.\d+)?`)까지 유효한 값으로 인정한다. */
         integer?: boolean
         /** null이면 제한 없음. */
         min?: number | string | null
+        /** null이면 제한 없음. */
         max?: number | string | null
         /** 값이 비거나 잘못됐을 때 blur 시 되돌릴 대상 - null이면 invalid 상태로 표시. */
         empty?: "min" | "max" | "value" | null
         /** invalid 상태일 때 보여줄 placeholder. */
         message?: string
+        /** 입력창 크기. 기본값 normal. */
         size?: "large" | "normal" | "small" | "mini"
     }>(),
     {
@@ -29,6 +34,8 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** 유효한 숫자가 입력되거나(input 중, min/max 범위를 만족할 때) blur 시 값이 보정/클램프될
+     * 때 발생한다 - invalid 상태인 동안은 발생하지 않는다. */
     "update:modelValue": [value: number]
 }>()
 

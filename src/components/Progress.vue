@@ -3,13 +3,21 @@ import { computed, ref, watch } from "vue"
 
 const props = withDefaults(
     defineProps<{
+        /** 현재 진행 값(v-model). `min`~`max` 범위 안에서의 위치로 바(bar)의 비율(%)이 계산된다. 기본값 0. */
         modelValue?: number
+        /** 진행 범위의 최솟값. 기본값 0. */
         min?: number
+        /** 진행 범위의 최댓값. 기본값 100. */
         max?: number
+        /** 바 방향 - `horizontal`이면 가로(width)로, `vertical`이면 세로(height)로 채워진다. 기본값 horizontal. */
         orient?: "horizontal" | "vertical"
         /** 원본 `opts.type` - `""` | `"flat"` | `"simple"` | `"simple flat"`. */
         variant?: "" | "flat" | "simple" | "simple flat"
+        /** 바에 줄무늬(striped) 스타일을 준다. 어디까지나 초기값이고, 노출된 `setStriped()`로 언제든
+         * prop과 무관하게 override할 수 있다. 기본값 false. */
         striped?: boolean
+        /** 줄무늬가 움직이는 애니메이션을 켠다(`striped`와 함께 써야 보인다). 초기값일 뿐이며
+         * `setAnimated()`로 override 가능. 기본값 false. */
         animated?: boolean
     }>(),
     {
@@ -24,6 +32,7 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** `setValue()`(노출된 API)로 값을 바꿀 때 발생 - v-model 동기화용. */
     "update:modelValue": [value: number]
 }>()
 
