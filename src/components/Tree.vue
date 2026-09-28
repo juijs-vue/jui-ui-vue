@@ -60,14 +60,17 @@ const emit = defineEmits<{
     /** `drag`가 켜진 상태에서 노드 드래그가 시작될 때(mousedown) 발생. 리스너가 세 번째 인자
      * `control.preventDefault()`를 호출하면 드래그 시작 자체가 취소된다. */
     dragstart: [node: TreeNodeInternal, e: MouseEvent, control: TreeDragControl]
-    /** 드래그 중 포인터가 다른 노드 위로 들어갈 때 발생 - `dragChild`가 `false`가 아닐 때만
-     * 발생한다(형제 재배치용 드래그 바 위를 지나가는 경우는 이 이벤트를 발생시키지 않는다).
-     * `control.preventDefault()`로 취소하면 그 노드가 hover(드롭 대상)로 표시되지 않는다. */
+    /** 드래그 중 포인터가 다른 노드 위로 들어갈 때 발생 - 노드 위 직접 드롭 경로(`dragChild
+     * !== false`)와 드래그 바를 이용한 형제 재배치 경로(`dragChild === false`) 양쪽 모두에서
+     * 발생한다(예전엔 후자에서 이 이벤트가 빠져 있었으나, 두 경로가 일관되게 리스너를 호출하도록
+     * 수정함). `control.preventDefault()`로 취소하면 그 노드가 hover(드롭 대상)로 표시되지
+     * 않는다. */
     dragover: [node: TreeNodeInternal, e: MouseEvent, control: TreeDragControl]
     /** 드롭이 실제로 적용되기 직전(mouseup)에 발생 - `node`는 드롭 대상(못 찾으면 null).
-     * `control.preventDefault()`로 취소하면 `move()`가 실행되지 않는다. 단, 이 이벤트는
-     * `dragChild !== false`일 때(노드 위 직접 드롭 경로)만 발생하고, 드래그 바를 이용한
-     * 형제 재배치(`dragBarDrop`)는 이 이벤트 없이 곧바로 `move()`를 호출한다. */
+     * `control.preventDefault()`로 취소하면 `move()`가 실행되지 않는다. `dragover`와 마찬가지로
+     * 노드 위 직접 드롭 경로와 드래그 바를 이용한 형제 재배치 경로 양쪽 모두에서 발생한다(예전엔
+     * 후자가 이 이벤트 없이 곧바로 `move()`를 호출했으나, 두 경로가 일관되게 리스너를 호출하고
+     * 취소도 가능하도록 수정함). */
     dragend: [node: TreeNodeInternal | null, e: MouseEvent, control: TreeDragControl]
 }>()
 
@@ -385,6 +388,11 @@ function dragBarOverNode(node: TreeNodeInternal, e: MouseEvent) {
     if (props.dragChild !== false) return // 1)번 경로가 열려 있으면 형제 재배치는 관여하지 않는다
     if (dragStart.value == null || dragStart.value === node.index) return
     if (node.parent == null) return // 원본도 root는 재배치 대상에서 제외
+    // 노드 위 직접 드롭 경로(dragOverNode)와 동일하게 dragover를 쏴서, 리스너가 이 경로에서도
+    // 호출되고(취소도 가능하고) 사용할 수 있게 한다 - 예전엔 이 경로만 이벤트 없이 곧바로
+    // dragBarRef를 갱신해서, dragChild===false로 쓰는 쪽은 dragover 리스너가 아예 호출되지
+    // 않는 비대칭이 있었다.
+    if (!emitCancelable("dragover", node, e)) return
 
     // 아이콘/제목을 담은 행(row)만의 높이를 써야 한다 - li 전체엔 열린 자식 <ul>까지
     // 포함돼 있어서 그 높이를 쓰면 자식이 있는 노드에서 판정이 어긋난다.
@@ -410,10 +418,18 @@ function dragBarOverNode(node: TreeNodeInternal, e: MouseEvent) {
 
     dragBarRef.value = { index: node.index, after, nest }
 }
-function dragBarDrop() {
+function dragBarDrop(e: MouseEvent) {
     if (props.dragChild !== false) return
     const { index, after, nest } = dragBarRef.value
+    // 노드 위 직접 드롭 경로(dragDropOnNode)와 동일하게 dragend를 쏴서(취소 가능), 이 경로도
+    // 일관되게 리스너를 호출한다 - 예전엔 이 경로만 이벤트 없이 곧바로 move()를 호출했다(이
+    // 파일 자신의 emits 타입 주석에도 그렇게 적혀 있었음 - 그 주석도 이 수정에 맞춰 갱신함).
     if (dragStart.value != null && index != null && index !== dragStart.value) {
+        if (!emitCancelable("dragend", get(index), e)) {
+            dragStart.value = null
+            dragBarRef.value = { index: null, after: false, nest: false }
+            return
+        }
         if (nest) {
             move(dragStart.value, lastChildSlotIndex(getNode(index)!))
         } else {

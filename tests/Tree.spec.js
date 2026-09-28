@@ -188,6 +188,52 @@ describe("Tree", () => {
         wrapper.unmount()
     })
 
+    it("drag=true, dragChild=false: sibling-reorder path emits dragover/dragend too (bug fix - it used to skip both)", async () => {
+        const wrapper = mount(Tree, {
+            props: { root: { title: "root" }, drag: true, dragChild: false },
+            attachTo: document.body
+        })
+        wrapper.vm.append({ title: "a" })
+        wrapper.vm.append({ title: "b" })
+        wrapper.vm.append({ title: "c" })
+        await wrapper.vm.$nextTick()
+
+        const items = wrapper.findAll("li:not(.root)")
+        await items[2].trigger("mousedown") // c 드래그 시작
+        await items[1].trigger("mousemove", { clientY: 0 }) // b 앞으로 재배치 판정
+        await items[1].trigger("mouseup")
+
+        expect(wrapper.emitted("dragover")).toBeTruthy()
+        expect(wrapper.emitted("dragover")[0][0].data.title).toBe("b")
+        expect(wrapper.emitted("dragend")).toBeTruthy()
+        expect(wrapper.emitted("dragend")[0][0].data.title).toBe("b")
+        wrapper.unmount()
+    })
+
+    it("drag=true, dragChild=false: canceling dragend via preventDefault blocks the sibling reorder", async () => {
+        const wrapper = mount(Tree, {
+            props: { root: { title: "root" }, drag: true, dragChild: false },
+            attachTo: document.body
+        })
+        wrapper.vm.append({ title: "a" })
+        wrapper.vm.append({ title: "b" })
+        wrapper.vm.append({ title: "c" })
+        await wrapper.vm.$nextTick()
+
+        const onDragend = vi.fn((_node, _e, control) => control.preventDefault())
+        await wrapper.setProps({ onDragend })
+
+        const items = wrapper.findAll("li:not(.root)")
+        await items[2].trigger("mousedown") // c 드래그 시작
+        await items[1].trigger("mousemove", { clientY: 0 })
+        await items[1].trigger("mouseup")
+
+        expect(onDragend).toHaveBeenCalled()
+        // 취소됐으므로 순서가 그대로여야 한다 (재배치가 실행되지 않음)
+        expect(wrapper.vm.list().map((n) => n.data.title)).toEqual(["a", "b", "c"])
+        wrapper.unmount()
+    })
+
     it("drag=true, dragChild=false: dropping on a leaf node's middle nests it as that node's child (leaf -> folder)", async () => {
         const wrapper = mount(Tree, {
             props: { root: { title: "root" }, drag: true, dragChild: false },
