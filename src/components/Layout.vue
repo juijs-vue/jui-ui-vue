@@ -20,29 +20,49 @@ type LayoutDir = "top" | "bottom" | "left" | "right"
 
 const props = withDefaults(
     defineProps<{
+        /** 루트 컨테이너의 폭(px) - null(기본)이면 부모 요소의 크기를 100%로 채운다(부모가 이미 크기를 잡고 있다고 가정). */
         width?: number | null
+        /** 루트 컨테이너의 높이(px) - null(기본)이면 부모 요소의 크기를 100%로 채운다. */
         height?: number | null
+        /** 리사이즈 바(resizer)의 배경색. */
         barColor?: string
+        /** 리사이즈 바의 두께(px) - 해당 영역이 resize 가능하면 그 영역이 차지하는 공간(band)에 이 값만큼 추가로 포함된다. */
         barSize?: number
 
+        /** top 슬롯 영역의 높이(px) - top 슬롯이 없으면 무시된다. 지정하지 않으면 topMin으로 시작하고, 이후 드래그 결과는 내부 상태로 추적되므로 v-model처럼 쓰려면 update:topSize를 받아 다시 넘겨야 한다. */
         topSize?: number | null
+        /** top 영역을 드래그로 줄일 수 있는 최솟값(px). */
         topMin?: number
+        /** top 영역을 드래그로 늘릴 수 있는 최댓값(px). */
         topMax?: number
+        /** top 영역에 리사이즈 바를 표시해 드래그로 크기를 바꿀 수 있게 할지 여부(기본 true) - false면 topSize로 고정된다. */
         topResize?: boolean
 
+        /** bottom 슬롯 영역의 높이(px) - bottom 슬롯이 없으면 무시된다. 지정하지 않으면 bottomMin으로 시작한다. */
         bottomSize?: number | null
+        /** bottom 영역의 최소 높이(px). */
         bottomMin?: number
+        /** bottom 영역의 최대 높이(px). */
         bottomMax?: number
+        /** bottom 영역에 리사이즈 바를 표시할지 여부(기본 true). */
         bottomResize?: boolean
 
+        /** left 슬롯 영역의 너비(px) - left 슬롯이 없으면 무시된다. 지정하지 않으면 leftMin으로 시작한다. */
         leftSize?: number | null
+        /** left 영역의 최소 너비(px). */
         leftMin?: number
+        /** left 영역의 최대 너비(px). */
         leftMax?: number
+        /** left 영역에 리사이즈 바를 표시할지 여부(기본 true). */
         leftResize?: boolean
 
+        /** right 슬롯 영역의 너비(px) - right 슬롯이 없으면 무시된다. 지정하지 않으면 rightMin으로 시작한다. */
         rightSize?: number | null
+        /** right 영역의 최소 너비(px). */
         rightMin?: number
+        /** right 영역의 최대 너비(px). */
         rightMax?: number
+        /** right 영역에 리사이즈 바를 표시할지 여부(기본 true). */
         rightResize?: boolean
     }>(),
     {
@@ -69,9 +89,13 @@ const props = withDefaults(
     }
 )
 const emit = defineEmits<{
+    /** top 영역 리사이즈 바 드래그가 끝났을 때(mouseup) 새 높이(px)와 함께 emit된다. */
     "update:topSize": [value: number]
+    /** bottom 영역 리사이즈 바 드래그가 끝났을 때 새 높이(px)와 함께 emit된다. */
     "update:bottomSize": [value: number]
+    /** left 영역 리사이즈 바 드래그가 끝났을 때 새 너비(px)와 함께 emit된다. */
     "update:leftSize": [value: number]
+    /** right 영역 리사이즈 바 드래그가 끝났을 때 새 너비(px)와 함께 emit된다. */
     "update:rightSize": [value: number]
 }>()
 

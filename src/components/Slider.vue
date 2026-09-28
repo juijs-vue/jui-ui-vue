@@ -12,17 +12,25 @@ type SliderHandle = "from" | "to"
 
 const props = withDefaults(
     defineProps<{
+        /** "single"이면 handle 하나(from만 사용), "double"이면 from/to 두 handle로 범위를 선택한다. */
         type?: "single" | "double"
+        /** 트랙 방향 - "horizontal"(기본) 또는 "vertical". */
         orient?: "horizontal" | "vertical"
+        /** 선택 가능한 최솟값. */
         min?: number
+        /** 선택 가능한 최댓값. */
         max?: number
+        /** 값 스냅 단위 - 반올림 결과의 소수 자릿수는 step 자체의 소수 자릿수를 따라간다(예: step=0.1이면 결과도 소수 첫째 자리까지). */
         step?: number
         /** v-model:from. */
         from?: number
         /** v-model:to (double일 때만 사용). */
         to?: number
+        /** 핸들 위에 현재 값을 보여주는 말풍선 표시 여부(기본 true). */
         tooltip?: boolean
+        /** 트랙에 현재 값(구간)을 채워 보여주는 progress bar 표시 여부(기본 true). */
         progress?: boolean
+        /** 툴팁에 표시할 값을 가공하는 함수 - 실제 emit되는 from/to 값에는 영향을 주지 않고 화면 표시용 메시지에만 적용된다. */
         format?: ((value: number) => string | number) | null
     }>(),
     {
@@ -39,8 +47,11 @@ const props = withDefaults(
     }
 )
 const emit = defineEmits<{
+    /** v-model:from 동기화용 - from 핸들 값이 바뀔 때마다 emit된다(마운트 시 초기 위치 반영 포함). */
     "update:from": [value: number]
+    /** v-model:to 동기화용 - to 핸들 값이 바뀔 때마다 emit된다(type이 "double"일 때만 실질적으로 쓰인다). */
     "update:to": [value: number]
+    /** 사용자가 드래그하거나 setFromValue()/setToValue() 등을 명시적으로 호출해 값이 바뀔 때 emit - 마운트 시 초기 위치를 잡는 호출에서는 emit되지 않는다. */
     change: [payload: { type: SliderHandle; from: number; to: number }]
 }>()
 

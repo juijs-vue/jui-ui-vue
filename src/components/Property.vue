@@ -18,32 +18,56 @@ import Colorpicker from "./Colorpicker.vue"
 // string/number/boolean/string[]로 갈린다) 의미 있는 필드만 이름 붙이고, 나머지는 인덱스
 // 시그니처로 열어둔다 - jui-grid-vue의 GridColumn과 달리 이 컴포넌트는 원래 "임의의 폼
 // 스키마"를 그리는 용도라 완전히 닫힌 타입으로 만드는 게 오히려 원래 유연성을 해친다.
+/** Property 컴포넌트가 그리는 폼 스키마의 한 행 - type에 따라 실제로 의미 있는 필드가 달라진다(예: number 전용 min/max/step, date 전용 titleFormat/format). */
 interface PropertyItem {
+    /** 렌더링할 입력 종류 - "group"은 접고 펼 수 있는 섹션 헤더로 그 아래 항목들을 묶고, 생략(undefined)하면 "text"와 동일하게 렌더링된다. */
     type?: "group" | "text" | "textarea" | "html" | "number" | "select" | "range" | "checkbox" | "switch" | "date" | "color" | "colors" | "property"
+    /** getValue()/setValue()/updateValue() 등에서 항목을 식별하는 키 - getAllValue()가 반환하는 객체의 필드명으로도 쓰인다(그룹 항목은 key 없이 둬도 된다). */
     key?: string
+    /** 항목 라벨 - 그룹이면 헤더 제목, 아니면 property-title에 표시되는 텍스트. */
     title?: string
+    /** 현재 값 - type에 따라 실제 shape이 갈린다(text/number는 string/number, checkbox/switch는 boolean, colors는 string[] 등). */
     value?: unknown
+    /** 입력을 읽기 전용으로 만든다(text/textarea/html/range 타입에서 지원). */
     readonly?: boolean
+    /** textarea/html 타입 입력창의 높이(px, 기본 100). */
     height?: number
+    /** number/range 타입의 최댓값(기본 100). */
     max?: number
+    /** number/range 타입의 최솟값(기본 0). */
     min?: number
+    /** number/range 타입의 증가 단위(기본 1). */
     step?: number
+    /** range 타입 값 뒤에 붙는 단위 문자열(예: "%") - 화면 표시와 실제 저장되는 값 문자열 모두에 붙는다. */
     postfix?: string
     /** select 타입일 때는 (string | {text?, value})[], property 타입일 때는 중첩 PropertyItem[]. */
     items?: unknown[]
+    /** 값 렌더링을 세로로 쌓을지 여부 - value가 배열(예: colors)이면 자동으로 세로 레이아웃이 적용되며, 이 prop으로 그 외의 경우에도 강제할 수 있다. */
     vertical?: boolean
+    /** 그룹 헤더 옆 또는 필드 아래에 표시되는 설명 - HTML로 그대로 삽입되므로(v-html) 신뢰할 수 없는 소스를 쓸 경우 호출 측에서 sanitize가 필요하다. */
     description?: string
+    /** type: "date" 항목의 달력 팝업 제목(연/월) 포맷 - Datepicker의 titleFormat으로 그대로 전달된다(기본 "yyyy. MM"). */
     titleFormat?: string
+    /** type: "date" 항목이 저장/표시하는 날짜 문자열 포맷 - Datepicker의 format으로 그대로 전달된다(기본 "yyyy/MM/dd"). */
     format?: string
+    /** 그 외 렌더러별로 필요한 임의의 필드를 열어둔다 - 완전히 닫힌 타입으로 만들면 원래의 폼 스키마 유연성을 해치기 때문. */
     [key: string]: unknown
 }
 interface PropertyExposed {
     getAllValue(): Record<string, unknown>
 }
 
-const props = withDefaults(defineProps<{ items?: PropertyItem[] }>(), { items: () => [] })
+const props = withDefaults(
+    defineProps<{
+        /** 렌더링할 폼 스키마 - 각 항목은 그룹 헤더(type: "group") 또는 실제 입력 필드 하나. 컴포넌트가 처음 만들어질 때 한 번만 읽어 내부 상태(localItems)로 복사하며, 이후 prop이 바뀌어도 자동으로 반영되지 않는다 - 다시 불러오려면 loadItems()를 명시적으로 호출해야 한다. */
+        items?: PropertyItem[]
+    }>(),
+    { items: () => [] }
+)
 const emit = defineEmits<{
+    /** 값이 바뀔 때(입력/체크박스/날짜/색상 선택 등, 텍스트류는 debounce 적용) emit - item은 변경된 항목 자체(참조)이고, newValue/oldValue로 변경 전후 값을 함께 준다. */
     change: [item: PropertyItem, newValue: unknown, oldValue: unknown]
+    /** loadItems() 호출로 전체 목록이 (재)로드된 직후 emit(마운트 시 최초 로드 포함, 이때 collapsedGroups도 초기화된다). */
     "load-items": []
 }>()
 

@@ -31,25 +31,37 @@ function installGlobalListenerOnce() {
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue"
 import type { CSSProperties } from "vue"
 
+/** items prop의 각 항목 - Dropdown.vue의 DropdownItem과 유사한 규약을 쓴다(href가 있으면 <a>로, 없으면 텍스트만 렌더링). */
 interface ComboItem {
+    /** 선택 값 - modelValue/change/click 이벤트 payload에 쓰인다. */
     value?: string | number
+    /** 목록과 선택된 텍스트 버튼에 표시할 텍스트. */
     text?: string
+    /** 지정하면 <a href>로 렌더링(없으면 텍스트만). */
     href?: string
+    /** 구분선 - 클릭/키보드 탐색 대상에서 제외된다. */
     divider?: boolean
 }
 
 const props = withDefaults(
     defineProps<{
+        /** 드롭다운 목록에 표시할 항목. */
         items?: ComboItem[]
         /** v-model - 선택된 value. */
         modelValue?: string | number
         /** modelValue가 없을 때 기본 선택 인덱스. */
         index?: number
+        /** 콤보 전체 폭(px) - 지정하면 텍스트 버튼 폭이 "width - 토글 버튼 폭 + 1"로 고정된다(0이면 텍스트 버튼이 내용에 맞춘 자연스러운 폭을 가진다). */
         width?: number
+        /** 드롭다운 목록의 최대 높이(px, 기본 100) - 넘치면 세로 스크롤된다. */
         height?: number
+        /** 열려있는 동안 방향키(위/아래)로 항목을 탐색하고 Enter로 선택할 수 있게 한다. */
         keydown?: boolean
+        /** 드롭다운 목록이 펼쳐지는 방향 - "top"이면 토글 버튼 위로, "bottom"(기본)이면 아래로 펼쳐진다. */
         position?: "top" | "bottom"
+        /** true(기본)면 목록 폭을 항목 내용 중 가장 넓은 것에 맞춰 늘린다(콤보 자체 폭보다 넓어질 수 있다) - false면 콤보 폭에 딱 맞춘다. */
         flex?: boolean
+        /** 버튼 크기 스타일 - "small"은 더 작은 패딩/폰트의 변형. */
         size?: "normal" | "small"
         /** 원본 데모 중에는 opts.width 없이 마크업(.btn)에 style="width:175px"만 직접 줘서
          * 텍스트 버튼 폭을 고정한 경우가 있다(combo_1) - width prop(opts.width와 동일하게
@@ -71,10 +83,15 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** v-model 동기화용 - 항목 클릭이나 setIndex()/setValue() 호출로 선택이 바뀔 때마다 emit된다. */
     "update:modelValue": [value: string | number]
+    /** 선택이 바뀔 때(클릭이든 setIndex()/setValue() 같은 프로그래매틱 호출이든) 항상 emit된다. */
     change: [payload: { index: number; value: string | number | undefined; text: string | undefined }]
+    /** 사용자가 항목을 직접 클릭해서 선택이 바뀐 경우에만 emit - setIndex()/setValue() 호출로는 emit되지 않는다. */
     click: [payload: { index: number; value: string | number | undefined; text: string | undefined }]
+    /** 드롭다운 목록이 열릴 때(open() 호출 시) emit. */
     open: []
+    /** 드롭다운 목록이 닫힐 때(fold() 호출 시, 문서 클릭 등으로 자동으로 닫히는 경우 포함) emit. */
     fold: []
 }>()
 

@@ -63,8 +63,11 @@ const props = withDefaults(
     { modelValue: "#FF0000" }
 )
 const emit = defineEmits<{
+    /** v-model 동기화용 - 드래그(사각형/hue/opacity)나 HEX/RGB 입력 등 색상이 바뀌는 모든 경로에서 hex 문자열로 emit된다. */
     "update:modelValue": [value: string]
+    /** 색상이 바뀔 때마다(update:modelValue와 동시에) emit - hex 문자열과, 알파(opacity)값까지 포함한 RGBColor 객체를 함께 전달한다. */
     change: [value: string, rgb: RGBColor]
+    /** HEX 입력 필드에서 유효한 값(#RRGGBB 또는 #RGB)을 입력하고 Enter를 눌렀을 때만 emit - 드래그나 다른 입력의 실시간 갱신과 구분되는 "확정" 시점을 알려준다. */
     enter: [value: string, rgb: RGBColor]
 }>()
 

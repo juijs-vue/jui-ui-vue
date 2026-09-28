@@ -8,17 +8,28 @@ import type { CSSProperties } from "vue"
 // show 이벤트는 원본처럼 "보이기 애니메이션이 끝난 뒤"가 아니라 add() 호출 시점에 바로 emit한다
 // (애니메이션 종료 콜백에 맞추려면 트랜지션 훅을 items 엔트리별로 추적해야 해서 배보다 배꼽이 큼).
 // scrollTop 보정(스크롤 컨테이너 안에서 알림이 뷰포트에 붙어있게 하는 것)도 이번 포팅 범위 밖이다.
+/** 알림 컨테이너가 붙는 위치. "top"/"bottom"은 폭 전체를 쓰는 중앙 정렬, 나머지 4개는 해당 모서리에 고정폭(268px)으로 쌓인다. */
 type NotifyPosition = "top" | "top-left" | "top-right" | "bottom" | "bottom-left" | "bottom-right"
+/** 방향별 padding을 개별 지정할 때 쓰는 형태 - 지정하지 않은 방향은 padding prop의 숫자값(또는 기본값)을 그대로 쓴다. */
 interface NotifyPadding {
+    /** 위쪽 padding(px). */
     top?: number
+    /** 아래쪽 padding(px). */
     bottom?: number
+    /** 왼쪽 padding(px). */
     left?: number
+    /** 오른쪽 padding(px). */
     right?: number
 }
+/** add()에 넘기는 알림 데이터 - title/message/color는 기본 템플릿이 쓰는 필드고, 그 외 임의 필드도 자유롭게 넣어 show/hide/select 이벤트 payload로 그대로 돌려받을 수 있다. */
 interface NotifyData {
+    /** 알림 제목. */
     title?: string
+    /** 알림 본문 텍스트. */
     message?: string
+    /** 알림 엘리먼트에 클래스로 그대로 붙는 색상/타입 이름(예: "danger") - CSS에서 배경색 등을 결정한다. */
     color?: string
+    /** 그 외 임의의 데이터 - show/hide/select 이벤트에 그대로 전달된다. */
     [key: string]: unknown
 }
 interface NotifyItem {
@@ -28,15 +39,21 @@ interface NotifyItem {
 
 const props = withDefaults(
     defineProps<{
+        /** 알림 컨테이너가 붙는 위치(기본 "top-right"). */
         position?: NotifyPosition
         /** 숫자 또는 { top?, bottom?, left?, right? } 형태로 특정 방향만 오버라이드. */
         padding?: number | NotifyPadding
+        /** 알림 아이템 사이 간격(px) - 각 알림에 margin-bottom으로 적용되므로 유일하거나 마지막 알림 아래에도 동일하게 적용된다. */
         distance?: number
+        /** 알림이 자동으로 사라지기까지의 시간(ms, 기본 3000). 0 이하면 자동으로 사라지지 않으며, add()의 두 번째 인자로 알림별로 개별 재정의할 수 있다. */
         timeout?: number
+        /** 등장 트랜지션 지속 시간(ms). */
         showDuration?: number
+        /** 퇴장 트랜지션 지속 시간(ms) - hide 이벤트도 알림이 배열에서 제거된 시점부터 이만큼 지연되어 emit된다. */
         hideDuration?: number
         /** jQuery의 "swing" 근사치로 CSS ease를 쓴다. */
         showEasing?: string
+        /** jQuery의 "linear" 근사치로 CSS ease를 쓴다. */
         hideEasing?: string
     }>(),
     {
@@ -52,8 +69,11 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** 알림이 추가되는 시점(add() 호출 시)에 emit - 등장 애니메이션 완료를 기다리지 않고 즉시 울린다. */
     show: [data: NotifyData]
+    /** 알림이 목록에서 제거된 뒤 hideDuration만큼 지연되어 emit된다(퇴장 트랜지션이 끝날 즈음). */
     hide: [data: NotifyData]
+    /** 알림을 클릭했을 때 emit - 클릭된 알림은 곧바로 제거된다(hide도 뒤이어 emit됨). */
     select: [data: NotifyData, e: MouseEvent]
 }>()
 

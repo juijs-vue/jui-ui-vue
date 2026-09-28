@@ -3,16 +3,26 @@ import { ref, computed, watch, onMounted, onBeforeUnmount, markRaw, nextTick } f
 import type { CSSProperties } from "vue"
 import Dropdown from "./Dropdown.vue"
 
+/** 탭 하나를 표현하는 데이터 - items prop과 update()/insert()/append()/prepend() 등 노출된 메서드가 공유하는 형태. */
 interface TabItem {
+    /** 탭 헤더(<a>)에 표시할 텍스트. */
     text?: string
+    /** 탭을 식별하는 값 - #panel-{value} 슬롯 이름과 v-for :key로 쓰인다. 지정해두면 move()/드래그로 순서가 바뀌거나 항목이 삽입/삭제돼도 콘텐츠가 엉뚱한 탭에 붙지 않는다(생략 시 index를 key로 쓰므로 순서가 바뀌면 콘텐츠가 어긋날 수 있다). */
     value?: string | number
+    /** 비활성 탭 - 클릭으로 선택할 수 없고, modelValue가 이 탭을 가리키면 첫 번째로 활성화 가능한 탭으로 자동 폴백한다(현재 선택된 탭은 disable()로 비활성화할 수 없다). */
     disabled?: boolean
+    /** append()/insert() 등으로 동적으로 추가한 탭의 콘텐츠로 렌더링할 컴포넌트(또는 렌더 함수) - 지정되면 #panel-{value} 슬롯보다 우선해서 <component :is="content">로 렌더링된다. */
     content?: unknown
+    /** content로 지정한 컴포넌트에 v-bind로 전달할 props. */
     contentProps?: Record<string, unknown>
 }
+/** menu prop(오버플로우 "Menu" 드롭다운)의 각 항목 - 내부적으로 Dropdown.vue에 그대로 전달된다. */
 interface MenuItem {
+    /** 드롭다운 항목에 표시할 텍스트. */
     text?: string
+    /** 항목 값 - changemenu 이벤트 payload에 쓰인다. */
     value?: string | number
+    /** 구분선 - 클릭/키보드 탐색 대상에서 제외된다. */
     divider?: boolean
 }
 
@@ -28,9 +38,11 @@ interface MenuItem {
 //      로 렌더링하므로, 그 자리에서 동적으로 만든 컴포넌트/템플릿을 그대로 지정할 수 있다.
 const props = withDefaults(
     defineProps<{
+        /** 탭 목록 - 초기값이거나, 부모가 배열 전체를 새로 교체할 때(참조가 바뀔 때)만 쓴다. 개별 추가/삭제/순서 변경은 update()/insert()/append()/prepend()/remove()/move() 같은 노출된 메서드로 하는 게 원본 API와 동일한 방식이다. */
         items: TabItem[]
         /** 활성 탭의 index. */
         modelValue?: number
+        /** 탭 헤더(ul)와 콘텐츠 영역의 배치 - "top"(기본)이면 헤더가 위, "bottom"이면 콘텐츠가 위로 온다(CSS order가 아니라 실제 DOM 순서를 바꿔서 재현한다). */
         position?: "top" | "bottom"
         /** examples/tab.html의 .tab / .pill 두 스타일과 동일. */
         variant?: "tab" | "pill"
@@ -55,13 +67,21 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** v-model 동기화용 - 탭 클릭(selectTab)이나 show() 호출, 또는 현재 활성 탭이 disabled로 바뀌어 자동 폴백될 때 새 인덱스로 emit된다. */
     "update:modelValue": [index: number]
+    /** 탭 목록이 내부적으로 바뀔 때(update/insert/append/prepend/remove/move, 드래그 재정렬 포함) 전체 배열 스냅샷과 함께 emit - items를 v-model:items처럼 부모와 동기화하고 싶을 때 쓴다. */
     "update:items": [items: TabItem[]]
+    /** 활성 탭이 바뀐 뒤(화면이 실제로 갱신된 걸 기다린 뒤) emit - 탭 클릭(selectTab)과 show() 호출 모두에서 발생하며, show()로 바뀐 경우에는 e가 없다. */
     change: [payload: { index: number; item: TabItem }, e?: MouseEvent]
+    /** 탭을 클릭해서 활성 탭이 바뀐 경우에만 change와 함께(동일 payload로) emit - show() 같은 프로그래매틱 호출에서는 emit되지 않는다. */
     click: [payload: { index: number; item: TabItem }, e: MouseEvent]
+    /** drag가 true일 때, 탭을 드래그하기 시작하면(mousedown) emit. */
     dragstart: [index: number, e: MouseEvent]
+    /** 드래그가 끝나면(mouseup) emit - index는 드래그된 탭의 최종 위치(재정렬 결과가 반영된 값)다. */
     dragend: [index: number, e: MouseEvent]
+    /** 오버플로우 "Menu" 항목을 클릭하면 열림/닫힘 여부와 무관하게 항상 emit(payload.text는 항상 "menu" 고정값). */
     menu: [payload: { text: string }, e: MouseEvent]
+    /** 오버플로우 메뉴(menu prop) 드롭다운에서 항목을 선택하면 emit. */
     changemenu: [payload: { index: number; value: string | number | undefined; text: string | undefined }]
 }>()
 

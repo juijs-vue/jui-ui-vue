@@ -43,12 +43,19 @@ function installGlobalListenersOnce() {
 import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue"
 import type { CSSProperties } from "vue"
 
+/** items prop 데이터 기반 렌더링에 쓰는 항목 - items를 지정하지 않으면 default 슬롯에 직접 작성한 <li> 마크업을 그대로 쓴다. */
 interface DropdownItem {
+    /** 항목 값 - change/click 이벤트 payload와 <li value> 속성에 쓰인다. */
     value?: string | number
+    /** 항목에 표시할 텍스트. */
     text?: string
+    /** 지정하면 <a href>로 렌더링(없으면 텍스트만 렌더링). */
     href?: string
+    /** 비활성 항목 - 클릭/키보드 탐색 대상에서 제외된다. */
     disabled?: boolean
+    /** 구분선 - 클릭/키보드 탐색 대상에서 제외된다. */
     divider?: boolean
+    /** 그룹 제목 항목 - 클릭/키보드 탐색 대상에서 제외된다(선택 불가). */
     title?: boolean
 }
 
@@ -56,23 +63,31 @@ const props = withDefaults(
     defineProps<{
         /** 표시 여부(v-model). */
         modelValue?: boolean
+        /** 데이터 기반으로 <li> 목록을 렌더링한다 - 지정하지 않으면 default 슬롯의 <li> 마크업을 그대로 쓴다. */
         items?: DropdownItem[]
         /** 항목 클릭 시 자동으로 닫힘. */
         close?: boolean
         /** 방향키로 탐색 가능. */
         keydown?: boolean
+        /** 드롭다운 목록의 너비(px) - 0이면 CSS 기본값을 따르고, 지정하면 <ul>에는 그대로, 바깥 컨테이너에는 테두리(1px 양쪽)를 더한 값을 준다. */
         width?: number
+        /** 목록의 최대 높이(px) - 0이면 제한 없음, 지정하면 세로 스크롤(overflow auto)되며 키보드 탐색 시 활성 항목이 보이도록 scrollTop도 맞춰준다. */
         height?: number
+        /** 드롭다운의 초기 left 위치(px, absolute 기준) - show(x, y)나 move()로 이후 덮어쓸 수 있다. */
         left?: number
+        /** 드롭다운의 초기 top 위치(px, absolute 기준) - show(x, y)나 move()로 이후 덮어쓸 수 있다. */
         top?: number
         /** 말풍선 꼬리 표시. */
         anchor?: boolean
+        /** anchor(말풍선 꼬리)를 오른쪽 모서리에 붙인다(.anchor-right 클래스) - anchor가 true일 때만 의미가 있다. */
         anchorRight?: boolean
         /** 말풍선 꼬리(.anchor)의 left 위치 - 원본 dropdown.js는 이걸 계산하지 않는다(꼬리
          * 위치는 각 예제가 트리거 엘리먼트 기준으로 직접 css()로 박아준다). 컴포넌트에는
          * CSS 기본값(30px)만 있으므로, 트리거 위치에 맞춰야 하는 예제는 이 prop으로 넘긴다. */
         anchorLeft?: number
+        /** 드롭다운 크기 스타일 - "large"는 더 넓은 폭/패딩의 변형. */
         size?: "normal" | "large"
+        /** 트리거 기준 정렬 방향 - "right"면 오른쪽 끝에 맞춰 펼쳐진다(.right 클래스). */
         align?: "left" | "right"
         /** 위쪽으로 펼쳐지는 변형(.dropup). */
         dropup?: boolean
@@ -96,10 +111,15 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+    /** v-model 동기화용 - show()/hide() 호출(또는 그걸 부르는 내부 상호작용)에 따라 true/false로 emit된다. */
     "update:modelValue": [value: boolean]
+    /** 선택 가능한 항목(divider/title/disabled 제외)을 클릭했을 때 emit - close가 true면 곧이어 자동으로 닫힌다. */
     change: [payload: { index: number; value: string | null; text: string | null }, e: MouseEvent]
+    /** modelValue가 true로 바뀌면 emit(동시에 이전에 열려있던 다른 Dropdown은 자동으로 닫힌다). */
     show: []
+    /** modelValue가 false로 바뀌면 emit. */
     hide: []
+    /** 항목 클릭 시 change와 함께(동일 payload로) emit - change와 구분해서 쓰고 싶을 때를 위한 별도 이벤트. */
     click: [payload: { index: number; value: string | null; text: string | null }, e: MouseEvent]
 }>()
 

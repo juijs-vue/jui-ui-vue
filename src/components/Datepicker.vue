@@ -16,14 +16,21 @@ interface DateCell {
 
 const props = withDefaults(
     defineProps<{
+        /** 달력 표시 단위 - "daily"(날짜, 기본), "monthly"(월 선택), "yearly"(연도 선택 - 오늘이 속한 연도 기준 4년 전부터 12개 표시). */
         type?: "daily" | "monthly" | "yearly"
+        /** 스킨 선택 - "datepicker"(기본)와 "calendar"는 같은 컴포넌트에 CSS 클래스만 다르게 적용한 차이(요일 표기도 SU/MO 대신 SUN/MON으로 달라진다). */
         variant?: "datepicker" | "calendar"
+        /** 크기 스타일 - "large"는 더 큰 변형. */
         size?: "normal" | "large"
         /** v-model - 선택된 날짜. */
         modelValue?: Date | null
+        /** head에 표시되는 제목(연/월 등)의 날짜 포맷 문자열(dateFormat에 그대로 전달, 기본 "yyyy.MM"). */
         titleFormat?: string
+        /** getFormat()과 select 이벤트가 반환하는 문자열의 날짜 포맷(기본 "yyyy-MM-dd"). */
         format?: string
+        /** 선택 가능한 최소 날짜 - 이전 날짜는 선택 불가로 표시되고, prev()도 이 날짜가 속한 월/연도에서는 더 이상 이전으로 넘어가지 않는다. */
         minDate?: Date | null
+        /** 선택 가능한 최대 날짜 - 이후 날짜는 선택 불가로 표시되고, next()도 이 날짜가 속한 월/연도에서는 더 이상 다음으로 넘어가지 않는다. */
         maxDate?: Date | null
         /** head에 prev-year/next-year(≪/≫) 버튼 표시. */
         moveYear?: boolean
@@ -41,10 +48,15 @@ const props = withDefaults(
     }
 )
 const emit = defineEmits<{
+    /** v-model 동기화용 - 사용자가 셀을 클릭해 날짜(월/연도 포함)를 선택하면 emit된다. */
     "update:modelValue": [value: Date]
+    /** 날짜 선택 시 emit - format prop으로 포맷된 문자열과 실제 Date 객체를 함께 전달한다. */
     select: [formatted: string, date: Date]
+    /** prev() 호출(이전 달/연도로 이동)이 실제로 페이지를 넘긴 뒤 emit - minDate에 막혀 이동하지 못했으면 emit되지 않는다. */
     prev: []
+    /** next() 호출(다음 달/연도로 이동)이 실제로 페이지를 넘긴 뒤 emit - maxDate에 막혀 이동하지 못했으면 emit되지 않는다. */
     next: []
+    /** reload() 호출로 현재 선택된 날짜를 다시 select()한 뒤 emit된다. */
     reload: []
 }>()
 
