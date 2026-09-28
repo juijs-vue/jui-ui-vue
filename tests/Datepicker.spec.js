@@ -107,4 +107,30 @@ describe("Datepicker", () => {
         })
         expect(wrapper.find("td.active b").text()).toBe("D15")
     })
+
+    it("daily: #cell slot's day prop is the real 0(Sun)-6(Sat) day-of-week (bug fix - it used to be the row's own column index, coincidentally right here but wrong for monthly/yearly)", () => {
+        // 2024-05-01 is a Wednesday (day=3) - the very first grid cell of May 2024 is April 28th
+        // (Sunday, day=0), so this also exercises a "previous month filler" cell, not just the
+        // selected date's own cell.
+        const wrapper = mount(Datepicker, {
+            props: { modelValue: new Date(2024, 4, 1) },
+            slots: { cell: `<template #cell="{ no, day }"><b>{{ no }}:{{ day }}</b></template>` }
+        })
+        const firstCellText = wrapper.findAll("td b")[0].text()
+        expect(firstCellText).toBe("28:0")
+    })
+
+    it("monthly/yearly: #cell slot's day prop is undefined, not a stray column index (bug fix)", () => {
+        const monthly = mount(Datepicker, {
+            props: { type: "monthly", modelValue: new Date(2024, 4, 15) },
+            slots: { cell: `<template #cell="{ day }"><b>{{ String(day) }}</b></template>` }
+        })
+        expect(monthly.findAll("td b").map((b) => b.text())).toEqual(Array(12).fill("undefined"))
+
+        const yearly = mount(Datepicker, {
+            props: { type: "yearly", modelValue: new Date(2024, 4, 15) },
+            slots: { cell: `<template #cell="{ day }"><b>{{ String(day) }}</b></template>` }
+        })
+        expect(yearly.findAll("td b").map((b) => b.text())).toEqual(Array(12).fill("undefined"))
+    })
 })

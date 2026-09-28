@@ -1,7 +1,10 @@
 <script setup lang="ts">
 // 원본(datepicker.js)의 tpl.date/tpl.dates(마크업 템플릿 기반 셀 렌더링)는 Vue의 #cell
-// scoped slot으로 대체했다(Dropdown/Select와 동일한 방향의 단순화) — day(0=일~6=토)/type
-// (""/"now"/"active"/"none")/no(날짜·월·연도 숫자)를 슬롯 프롭으로 넘겨준다.
+// scoped slot으로 대체했다(Dropdown/Select와 동일한 방향의 단순화) — day(daily 타입에서만
+// 0=일~6=토, monthly/yearly에서는 요일 개념이 없어 undefined)/type(""/"now"/"active"/"none")/
+// no(날짜·월·연도 숫자)를 슬롯 프롭으로 넘겨준다. (버그 수정: 예전엔 day 자리에 각 셀의 실제
+// day 필드가 아니라 그 행 안에서의 열 인덱스(daily는 우연히 같은 값이지만 monthly/yearly는
+// 요일과 무관한 0~2 인덱스일 뿐이었다)를 그대로 흘려보냈다.)
 // .datepicker와 .calendar는 원본에서 동일한 컴포넌트에 CSS 클래스만 다르게 준 스킨 차이라
 // (datepicker.less vs calendar.less), variant prop으로 그 둘을 고른다.
 import { ref, computed, watch } from "vue"
@@ -357,7 +360,7 @@ defineExpose({ page, prev, next, select, addTime, getDate, getTime, getFormat, r
                 </tr>
                 <tr v-for="(row, ri) in rows" :key="ri">
                     <td v-for="(cell, ci) in row" :key="ci" :class="cell.type" @click="selectCell(cell)">
-                        <slot name="cell" :type="cell.type" :no="cell.no" :day="ci">{{ cell.no }}</slot>
+                        <slot name="cell" :type="cell.type" :no="cell.no" :day="cell.day">{{ cell.no }}</slot>
                     </td>
                 </tr>
             </tbody>
