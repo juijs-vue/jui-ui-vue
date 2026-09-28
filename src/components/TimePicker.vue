@@ -51,7 +51,10 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-    /** v-model 동기화용 - 입력 blur로 값을 확정하거나 time 모드 스피너(▲/▼)를 클릭했을 때 발생한다. 방향키(↑/↓)로 값을 미리 바꾸는 동안은 화면만 갱신되고 이 이벤트는 발생하지 않는다(다음 blur 시점에 한꺼번에 반영됨). */
+    /** v-model 동기화용 - 입력 blur로 값을 확정하거나, time 모드 스피너(▲/▼)를 클릭하거나,
+     * 포커스된 필드에서 방향키(↑/↓)를 누를 때마다 매번 그 즉시 발생한다(세 경로 모두 동일하게
+     * 커밋한다 - 예전엔 방향키만 화면만 갱신하고 이 이벤트를 안 쏴서 blur 전까지 v-model
+     * 소비자가 변경을 알 수 없는 버그가 있었다). */
     "update:modelValue": [value: TimeValue]
     /** update:modelValue와 같은 시점에 같은 값으로 함께 발생한다. */
     change: [value: TimeValue]
@@ -94,9 +97,9 @@ function commit() {
     emit("change", { ...internal.value })
 }
 
-function setField(field: TimeField, value: number, { silent }: { silent?: boolean } = {}) {
+function setField(field: TimeField, value: number) {
     internal.value = { ...internal.value, [field]: clamp(field, value) }
-    if (!silent) commit()
+    commit()
 }
 
 const focusedField = ref<TimeField>(props.mode === "date" ? "year" : "hours")
@@ -108,7 +111,11 @@ function onFocus(field: TimeField) {
 function onKeyup(field: TimeField, e: KeyboardEvent) {
     if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return
     const dist = e.key === "ArrowUp" ? 1 : -1
-    setField(field, (internal.value[field] || 0) + dist, { silent: true })
+    // 이전엔 { silent: true }라 키 입력이 내부 상태(입력창에 보이는 값)만 바꾸고
+    // update:modelValue/change를 쏘지 않았다 - blur 전까지는 v-model 소비자가 전혀 알 수
+    // 없는 버그였다(같은 값 변경 경로인 스핀 버튼 클릭/blur는 둘 다 커밋한다). 세 경로를
+    // 일관되게 맞춤.
+    setField(field, (internal.value[field] || 0) + dist)
 }
 
 function onBlur(field: TimeField, e: FocusEvent) {

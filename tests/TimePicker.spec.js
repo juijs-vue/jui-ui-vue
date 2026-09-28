@@ -19,15 +19,18 @@ describe("TimePicker", () => {
         expect(wrapper.find(".icon-calendar").exists()).toBe(false)
     })
 
-    it("ArrowUp/ArrowDown on a focused field adjusts it by 1 without emitting yet, blur commits", async () => {
+    it("ArrowUp/ArrowDown on a focused field adjusts it by 1 and commits immediately (bug fix - it used to stay silent until blur)", async () => {
         const wrapper = mount(TimePicker, { props: { mode: "time", modelValue: { hours: 10, minutes: 0 } } })
         const hours = wrapper.findAll("input")[0]
 
         await hours.trigger("focus")
         await hours.trigger("keyup", { key: "ArrowUp" })
         expect(hours.element.value).toBe("11")
-        expect(wrapper.emitted("update:modelValue")).toBeUndefined()
+        expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([{ hours: 11, minutes: 0 }])
+        expect(wrapper.emitted("change").at(-1)).toEqual([{ hours: 11, minutes: 0 }])
 
+        // blur re-parses the input and commits again (setField always commits, even to the same
+        // value - a separate, pre-existing characteristic, not something this fix changes)
         await hours.trigger("blur")
         expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([{ hours: 11, minutes: 0 }])
     })
