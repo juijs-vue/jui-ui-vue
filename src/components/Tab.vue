@@ -288,7 +288,12 @@ function remove(index: number) {
     syncItems()
 }
 
-/** 원본 move(index, targetIndex) — 탭 위치 변경(드래그와 동일 로직, 이벤트는 emit하지 않음) */
+/** 원본 move(index, targetIndex) — 탭 위치 변경. reorder()와 동일 로직이라 update:items(및
+ * 옮긴 탭이 활성 탭이었으면 update:modelValue)는 그대로 발생한다 - activeIndex를 이 컴포넌트가
+ * prop(modelValue)으로만 들고 있는 controlled 구조라, 그 emit 없이는 "활성 탭이 이동한 탭을
+ * 따라간다"는 것 자체가 불가능하기 때문이다. 원본의 "이벤트 없음" 설명은 드래그 전용
+ * 이벤트(dragstart/dragend)에만 해당한다 - 이 둘은 실제 드래그 제스처에서만 발생하고 move()
+ * 호출로는 발생하지 않는다. */
 function move(index: number, targetIndex: number) {
     reorder(index, targetIndex)
 }
