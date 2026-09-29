@@ -125,4 +125,22 @@ describe("StringChecker", () => {
 
         expect(input.attributes("placeholder")).toBe("이메일이 이상해요")
     })
+
+    it("external modelValue changes are reflected in the displayed value (bug fix - used to only apply at initial render)", async () => {
+        const wrapper = mount(StringChecker, { props: { modelValue: "hello" } })
+        await wrapper.setProps({ modelValue: "world" })
+        expect(wrapper.find("input").element.value).toBe("world")
+    })
+
+    it("an external modelValue change clears a stale invalid state", async () => {
+        const wrapper = mount(StringChecker, { props: { modelValue: "", pattern: "email" } })
+        const input = wrapper.find("input")
+        await input.setValue("bad")
+        await input.trigger("blur")
+        expect(input.classes()).toContain("invalid")
+
+        await wrapper.setProps({ modelValue: "reset" })
+        expect(input.classes()).not.toContain("invalid")
+        expect(wrapper.find("input").element.value).toBe("reset")
+    })
 })

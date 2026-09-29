@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue"
+import { ref, watch } from "vue"
 
 // 원본(stringchecker.js)의 validStringType()과 동일한 순서로 검사한다:
 //   1) validJson 실패 → 즉시 무효(placeholder 표시)
@@ -18,7 +18,8 @@ const patterns: Record<PatternName, RegExp> = {
 
 const props = withDefaults(
     defineProps<{
-        /** 현재 값. blur 시 유효성 검사를 통과했을 때만 갱신되어 emit된다. 기본값 "". */
+        /** 현재 값(v-model) - blur 시 유효성 검사를 통과했을 때만 갱신되어 emit되고, 외부에서
+         * 이 prop을 직접 바꾸면 즉시 반영되어 표시값과 invalid 상태가 초기화된다. 기본값 "". */
         modelValue?: string
         /** true면 `{"key":"<value>"}` 형태로 JSON.parse를 시도해 실패 시 즉시 무효 처리한다(placeholder만 남기고 입력을 비움). 기본값 true. */
         validJson?: boolean
@@ -123,6 +124,17 @@ function markInvalid(type: string | null, value: string) {
     const initial = checkValid(display.value, true)
     if (!initial.valid) markInvalid(initial.invalidType, display.value)
 }
+
+// modelValue는 최초 렌더에만 반영되고 이후 외부 변경엔 반응하지 않던 버그가 있었다 - v-model로
+// 쓰이는 이상 부모가 나중에 값을 바꾸면(초기화 버튼 등) 화면도 같이 갱신돼야 한다.
+watch(
+    () => props.modelValue,
+    (v) => {
+        display.value = v ?? ""
+        invalid.value = false
+        placeholder.value = ""
+    }
+)
 
 function onInput(e: Event) {
     display.value = (e.target as HTMLInputElement).value
