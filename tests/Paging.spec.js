@@ -69,4 +69,20 @@ describe("Paging", () => {
         expect(wrapper.emitted("reload")).toHaveLength(1)
         expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([1])
     })
+
+    it("with count=0 (no data yet), first()/last()/reload() still land on page 1, never page 0 (bug fix)", async () => {
+        const wrapper = mount(Paging, { props: { count: 0, pageCount: 10 } })
+
+        wrapper.vm.first()
+        expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([1])
+
+        wrapper.vm.last()
+        expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([1])
+
+        wrapper.vm.reload()
+        expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([1])
+
+        wrapper.vm.next()
+        expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([1])
+    })
 })

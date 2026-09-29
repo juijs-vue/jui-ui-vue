@@ -70,7 +70,10 @@ const pages = computed(() => {
 })
 
 function setPage(pNo: number, emitEvent: boolean) {
-    let next = pNo > lastPage.value ? lastPage.value : pNo
+    // lastPage가 0(count=0, 즉 데이터 없음)이어도 modelValue 자체는 "1-base"라는 문서 계약을
+    // 지켜야 한다 - 그대로 클램프하면 first()/last()/reload() 등이 0을 내보내던 버그가 있었다.
+    const last = Math.max(lastPage.value, 1)
+    let next = pNo > last ? last : pNo
     next = pNo < 1 ? 1 : next
 
     internalPage.value = next
