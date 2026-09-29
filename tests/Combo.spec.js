@@ -48,6 +48,24 @@ describe("Combo", () => {
         expect(wrapper.emitted("change")).toBeUndefined()
     })
 
+    it("clicking a divider <li> does not close the dropdown (bug fix - hideAll() used to fire unconditionally)", async () => {
+        const wrapper = mount(Combo, { props: { items }, attachTo: document.body })
+        await wrapper.find(".toggle").trigger("click")
+        expect(wrapper.find("ul").isVisible()).toBe(true)
+        await wrapper.findAll("li")[2].trigger("click")
+        expect(wrapper.find("ul").isVisible()).toBe(true)
+        wrapper.unmount()
+    })
+
+    it("exposed setIndex/setValue on a divider are a no-op (bug fix - used to select the divider itself)", () => {
+        const wrapper = mount(Combo, { props: { items } })
+        wrapper.vm.setIndex(2) // divider의 index
+        expect(wrapper.emitted("update:modelValue")).toBeUndefined()
+
+        wrapper.vm.setValue(undefined) // divider의 value(undefined)
+        expect(wrapper.emitted("update:modelValue")).toBeUndefined()
+    })
+
     it("clicking outside the combo (document click) closes it", async () => {
         const wrapper = mount(Combo, { props: { items }, attachTo: document.body })
         await wrapper.find(".toggle").trigger("click")

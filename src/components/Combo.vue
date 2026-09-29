@@ -176,20 +176,24 @@ function selectByIndex(index: number, e?: MouseEvent) {
     }
 }
 
-function onItemClick(_item: ComboItem, index: number, e: MouseEvent) {
+function onItemClick(item: ComboItem, index: number, e: MouseEvent) {
+    // divider는 "클릭 대상에서 제외"돼야 하므로(items prop 문서 참고) hideAll()도 여기서
+    // 걸러야 한다 - 아니면 divider를 클릭했을 뿐인데 이 콤보를 포함해 열려있는 다른 콤보까지
+    // 전부 닫혀버린다.
+    if (item.divider) return
     hideAll()
     selectByIndex(index, e)
 }
 
 function setIndex(index: number) {
     const item = props.items[index]
-    if (!item) return
+    if (!item || item.divider) return
     emit("update:modelValue", item.value as string | number)
     emit("change", { index, value: item.value, text: item.text })
 }
 function setValue(value: string | number) {
     const index = props.items.findIndex((it) => String(it.value) === String(value))
-    if (index < 0) return
+    if (index < 0 || props.items[index].divider) return
     emit("update:modelValue", value)
     emit("change", { index, value, text: props.items[index].text })
 }
