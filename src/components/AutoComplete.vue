@@ -43,6 +43,15 @@ const emit = defineEmits<{
 }>()
 
 const localWords = ref(props.words.slice())
+// words는 문서상 일반적인 반응형 prop처럼 보이지만, 이전엔 setup 시점에 한 번만 복사되고
+// 이후 prop 변경엔 반응하지 않았다(그동안은 노출된 update()를 직접 불러야만 목록이
+// 바뀌었다) - Dropdown.vue의 items처럼 "부모가 바꾸면 자동 반영"되도록 맞춘다.
+watch(
+    () => props.words,
+    (v) => {
+        localWords.value = v.slice()
+    }
+)
 const open = ref(false)
 const highlighted = ref(-1)
 let blurTimer: ReturnType<typeof setTimeout> | null = null
@@ -81,6 +90,10 @@ function onInput(e: Event) {
     internalValue.value = (e.target as HTMLInputElement).value
     emit("update:modelValue", internalValue.value)
     highlighted.value = -1
+    // 이전엔 open 갱신을 onKeyup에만 맡겨서, 실제 타이핑(keydown→input→keyup)에서는 우연히
+    // 맞물렸지만 keyup 없이 값만 바뀌는 경로(붙여넣기, 프로그램적 input 디스패치)에서는 목록이
+    // 갱신된 뒤에도 드롭다운 열림 상태가 그대로 어긋난 채 남았다.
+    syncOpenFromList()
 }
 
 // visibleList는 modelValue에 파생되므로, 입력 직후(다음 tick) 목록 유무로 open을 갱신한다.

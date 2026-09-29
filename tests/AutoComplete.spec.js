@@ -82,6 +82,24 @@ describe("AutoComplete", () => {
         expect(wrapper.find(".dropdown").exists()).toBe(false)
     })
 
+    it("typing (input event alone, no keyup - e.g. paste) still opens the dropdown (bug fix - open state used to only sync from keyup)", async () => {
+        const wrapper = mount(AutoComplete, { props: { modelValue: "", words } })
+        await wrapper.find("input").setValue("java") // setValue만 - keyup은 일부러 트리거하지 않는다
+
+        const items = wrapper.findAll(".dropdown li")
+        expect(items.map((i) => i.text())).toEqual(["Java", "JavaScript"])
+    })
+
+    it("external words prop changes are reflected without calling update() (bug fix - used to only apply at initial render)", async () => {
+        const wrapper = mount(AutoComplete, { props: { modelValue: "rub", words: [] } })
+        expect(wrapper.find(".dropdown").exists()).toBe(false)
+
+        await wrapper.setProps({ words: ["Ruby", "Rust"] })
+        await wrapper.find("input").trigger("keyup")
+
+        expect(wrapper.vm.list()).toEqual(["Ruby"])
+    })
+
     it("exposed update()/close()/list()", async () => {
         const wrapper = mount(AutoComplete, { props: { modelValue: "rub", words: [] } })
 
