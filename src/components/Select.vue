@@ -94,9 +94,7 @@ function setValue(value: SelectValue | SelectValue[]) {
     emit("change", value, prevValue)
 }
 
-function onItemClick(item: SelectItemObject) {
-    if (item.type === "divider") return
-
+function selectItem(item: SelectItemObject) {
     if (props.multi) {
         const current = Array.isArray(currentValue.value) ? currentValue.value : []
         const next = current.includes(item.value as SelectValue)
@@ -105,8 +103,13 @@ function onItemClick(item: SelectItemObject) {
         setValue(next)
     } else {
         setValue(item.value as SelectValue)
-        open.value = false
     }
+}
+
+function onItemClick(item: SelectItemObject) {
+    if (item.type === "divider") return
+    selectItem(item)
+    if (!props.multi) open.value = false
 }
 
 const selectedItems = computed(() => normalizedItems.value.filter((it) => isSelected(it)))
@@ -128,11 +131,12 @@ function getValue() {
 function setValueApi(value: SelectValue | SelectValue[]) {
     setValue(value)
 }
-/** 원본 setSelectedIndex(index) */
+/** 원본 setSelectedIndex(index) - multi일 때는 클릭과 동일하게 기존 선택에 토글된다(이전엔
+ * 전체를 [item.value]로 통째로 교체해서 다른 선택 항목이 사라지는 버그가 있었다). */
 function setSelectedIndex(index: number) {
     const item = normalizedItems.value[index]
     if (!item) return
-    setValue(props.multi ? [item.value as SelectValue] : (item.value as SelectValue))
+    selectItem(item)
 }
 /** 원본 getSelectedIndex() — multi가 아닐 때 현재 선택된 아이템의 인덱스 */
 function getSelectedIndex() {

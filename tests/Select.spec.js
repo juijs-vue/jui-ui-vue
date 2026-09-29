@@ -89,6 +89,20 @@ describe("Select", () => {
         expect(wrapper.emitted("update:modelValue").at(-1)).toEqual(["jennifer"])
     })
 
+    it("multi: exposed setSelectedIndex toggles into the existing selection instead of replacing it (bug fix)", () => {
+        const wrapper = mount(Select, { props: { items, multi: true, modelValue: ["jennifer", "dark"] } })
+
+        wrapper.vm.setSelectedIndex(4) // "pattern" - 기존에 없던 값이므로 추가돼야 한다
+        expect(wrapper.emitted("update:modelValue")[0]).toEqual([["jennifer", "dark", "pattern"]])
+    })
+
+    it("multi: exposed setSelectedIndex on an already-selected item removes it (toggle off)", async () => {
+        const wrapper = mount(Select, { props: { items, multi: true, modelValue: ["jennifer", "dark"] } })
+
+        wrapper.vm.setSelectedIndex(0) // "jennifer" - 이미 선택돼 있으므로 제거돼야 한다
+        expect(wrapper.emitted("update:modelValue")[0]).toEqual([["dark"]])
+    })
+
     it("clicking outside closes the dropdown", async () => {
         const wrapper = mount(Select, { props: { items }, attachTo: document.body })
         await wrapper.find(".title").trigger("click")
