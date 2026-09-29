@@ -94,4 +94,23 @@ describe("NumberChecker", () => {
         await input.setValue("3.14")
         expect(wrapper.emitted("update:modelValue").at(-1)).toEqual([3.14])
     })
+
+    it("blur with empty=\"min\" but no min given marks invalid instead of silently blanking (bug fix)", async () => {
+        const wrapper = mount(NumberChecker, { props: { modelValue: 5, empty: "min", message: "Invalid number" } })
+        const input = wrapper.find("input")
+
+        await input.setValue("abc")
+        await input.trigger("blur")
+
+        expect(input.element.value).toBe("")
+        expect(input.classes()).toContain("invalid")
+        expect(input.attributes("placeholder")).toBe("Invalid number")
+        expect(wrapper.emitted("update:modelValue")).toBeUndefined()
+    })
+
+    it("external modelValue changes are reflected in the displayed value (bug fix - used to only apply at initial render)", async () => {
+        const wrapper = mount(NumberChecker, { props: { modelValue: 5 } })
+        await wrapper.setProps({ modelValue: 42 })
+        expect(wrapper.find("input").element.value).toBe("42")
+    })
 })
