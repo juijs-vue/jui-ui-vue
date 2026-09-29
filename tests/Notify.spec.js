@@ -109,4 +109,32 @@ describe("Notify", () => {
         await wrapper.vm.$nextTick()
         expect(wrapper.findAll(".notify")).toHaveLength(0)
     })
+
+    it("reset() still emits hide for each cleared item (bug fix - used to splice the array directly, skipping hide entirely)", async () => {
+        const wrapper = mount(Notify, { props: { timeout: 0 } })
+        wrapper.vm.add({ title: "A" })
+        wrapper.vm.add({ title: "B" })
+        await wrapper.vm.$nextTick()
+
+        wrapper.vm.reset()
+        vi.advanceTimersByTime(500)
+
+        const hidden = wrapper.emitted("hide").map((call) => call[0].title)
+        expect(hidden.sort()).toEqual(["A", "B"])
+    })
+
+    it("reset() also neutralizes an already-scheduled auto-remove timeout without a duplicate hide", async () => {
+        const wrapper = mount(Notify, { props: { timeout: 1000 } })
+        wrapper.vm.add({ title: "A" })
+        await wrapper.vm.$nextTick()
+
+        wrapper.vm.reset()
+        vi.advanceTimersByTime(500)
+        expect(wrapper.emitted("hide")).toHaveLength(1)
+
+        // 원래 예약돼 있던 setTimeout(() => removeItem(id), 1000)이 이 시점에 실행돼도
+        // 이미 reset()이 지운 항목이라 findIndex가 -1을 반환해 조용히 no-op돼야 한다(중복 hide 없음).
+        vi.advanceTimersByTime(1000)
+        expect(wrapper.emitted("hide")).toHaveLength(1)
+    })
 })

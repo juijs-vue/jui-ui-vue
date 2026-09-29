@@ -196,7 +196,11 @@ function onItemClick(entry: NotifyItem, e: MouseEvent) {
 
 /** 원본 reset() — 모든 알림 제거 */
 function reset() {
-    items.value = []
+    // 이전엔 items.value = []로 직접 비워서 hide 이벤트 문서 주석("목록에서 제거된 뒤 emit")과
+    // 어긋났고, 이미 예약돼 있던 자동 제거 setTimeout까지 findIndex 실패로 조용히 무력화돼서
+    // 그 알림들의 hide가 영영 발생하지 않았다 - 각 항목을 removeItem으로 순서대로 제거한다
+    // (items.value를 splice하며 순회하므로 원본 배열이 아니라 복사본을 순회해야 한다).
+    ;[...items.value].forEach((item) => removeItem(item.id))
 }
 
 defineExpose({ add, reset })
