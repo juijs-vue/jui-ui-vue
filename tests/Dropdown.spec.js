@@ -75,6 +75,17 @@ describe("Dropdown", () => {
         expect(b.emitted("update:modelValue").at(-1)).toEqual([false])
     })
 
+    it("driving modelValue directly (without calling show()) still closes a previously-open sibling (bug fix - the auto-close used to live only inside show())", async () => {
+        const a = mount(Dropdown, { props: { modelValue: false } })
+        const b = mount(Dropdown, { props: { modelValue: false } })
+
+        // show()를 거치지 않고 v-model 그 자체를 바꾸는, 문서가 약속한 "일반적인" 경로
+        await a.setProps({ modelValue: true })
+        await b.setProps({ modelValue: true })
+
+        expect(a.emitted("update:modelValue")?.at(-1)).toEqual([false])
+    })
+
     it("keydown navigation (down/down/enter) selects the second selectable item when keydown=true", async () => {
         const wrapper = mount(Dropdown, {
             props: {

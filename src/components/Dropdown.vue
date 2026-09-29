@@ -233,7 +233,6 @@ function wheel(key: number, callback?: () => void) {
 }
 
 function show(x?: number, y?: number) {
-    hideActive()
     if (x !== undefined && y !== undefined) move(x, y)
     emit("update:modelValue", true)
 }
@@ -248,6 +247,11 @@ watch(
     () => props.modelValue,
     (v) => {
         if (v) {
+            // "다른 Dropdown은 자동으로 닫힌다"(update:modelValue 문서 주석)는 이전엔 show()
+            // 안에서만 호출돼서, v-model을 직접 조작(show()를 거치지 않고 부모가 바로 true로
+            // 바꾸는 경우)하면 다른 Dropdown이 안 닫혔다 - modelValue가 실제로 true가 되는
+            // 이 지점으로 옮겨서 두 경로가 동일하게 동작하게 한다.
+            hideActive()
             activeDropdown = { hide, wheel }
             emit("show")
         } else {
