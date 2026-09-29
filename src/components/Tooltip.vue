@@ -11,7 +11,9 @@ const props = withDefaults(
         text?: string
         /** 트리거 기준 툴팁이 나타나는 방향. 뷰포트 밖으로 나가면 nudge 보정으로 안쪽으로 밀어넣을 뿐 이 방향 자체는 바뀌지 않는다. 기본값 "top". */
         position?: "top" | "bottom" | "left" | "right"
-        /** 툴팁 배경색(화살표 anchor와 message 박스에 모두 적용). null이면 CSS 기본 배경색을 쓴다. 기본값 null. */
+        /** 툴팁 배경색 - message 박스에만 적용된다(화살표 anchor는 테마 CSS의 고정된
+         * border-color로만 그려지며 이 prop의 영향을 받지 않는다 - 원본도 동일한 제약이 있다).
+         * null이면 CSS 기본 배경색을 쓴다. 기본값 null. */
         color?: string | null
         /** 툴팁 박스의 최대 너비(px). 내용이 이보다 좁으면 그만큼만 차지한다(width: max-content). 기본값 150. */
         width?: number
