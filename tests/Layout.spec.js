@@ -119,6 +119,26 @@ describe("Layout", () => {
         wrapper.unmount()
     })
 
+    it("dragging left exactly to leftMax reaches it (bug fix - top/left used a strict < against max, 1px short of bottom/right's <=)", async () => {
+        const wrapper = mount(Layout, {
+            slots: { left: "L", center: "C" },
+            props: { leftSize: 100, leftMin: 50, leftMax: 200 },
+            attachTo: document.body
+        })
+        stubRootSize(wrapper, 800, 600)
+        await wrapper.vm.resize()
+        await wrapper.vm.$nextTick()
+
+        const resizer = wrapper.find(".resize.left")
+        await resizer.trigger("mousedown", { clientX: 100, clientY: 0 })
+        document.dispatchEvent(new MouseEvent("mousemove", { clientX: 200, clientY: 0 })) // leftMax 정확히
+        document.dispatchEvent(new MouseEvent("mouseup"))
+        await wrapper.vm.$nextTick()
+
+        expect(wrapper.emitted("update:leftSize").at(-1)[0]).toBe(200)
+        wrapper.unmount()
+    })
+
     it("dragging the right resizer emits update:rightSize computed from the far edge", async () => {
         const wrapper = mount(Layout, {
             slots: { right: "R", center: "C" },

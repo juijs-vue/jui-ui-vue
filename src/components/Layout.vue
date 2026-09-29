@@ -269,9 +269,9 @@ function onDocMouseMove(e: MouseEvent) {
     const candidate = dir === "top" || dir === "bottom" ? candidateScreen - rect.top : candidateScreen - rect.left
 
     if (dir === "top") {
-        if (props.topMin <= candidate && candidate < props.topMax) ghostPos.value = candidate
+        if (props.topMin <= candidate && candidate <= props.topMax) ghostPos.value = candidate
     } else if (dir === "left") {
-        if (props.leftMin <= candidate && candidate < props.leftMax) ghostPos.value = candidate
+        if (props.leftMin <= candidate && candidate <= props.leftMax) ghostPos.value = candidate
     } else if (dir === "bottom") {
         const size = rootSize.value.height - (candidate + props.barSize)
         if (props.bottomMin <= size && size <= props.bottomMax) ghostPos.value = candidate
