@@ -92,4 +92,13 @@ describe("Accordion", () => {
         const wrapper = mount(Accordion, { props: { items } })
         expect(wrapper.emitted("init")).toHaveLength(1)
     })
+
+    it("content: null falls back to the named slot instead of rendering nothing (bug fix - typeof null === 'object')", () => {
+        const itemsWithNullContent = [{ title: "Item", value: "x", content: null }]
+        const wrapper = mount(Accordion, {
+            props: { items: itemsWithNullContent, modelValue: 0 },
+            slots: { "content-x": "<p class=\"content-x\">from slot</p>" }
+        })
+        expect(wrapper.find(".content-x").exists()).toBe(true)
+    })
 })
