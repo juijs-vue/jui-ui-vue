@@ -80,4 +80,18 @@ describe("Colorpicker", () => {
         expect(lastChange[1].a).toBe(0)
         wrapper.unmount()
     })
+
+    it("exposed setColor accepts an RGBColor object with a 0-valued channel (bug fix - falsy check used to drop it)", async () => {
+        const wrapper = mount(Colorpicker, { props: { modelValue: "#FF0000" } })
+        wrapper.vm.setColor({ r: 0, g: 0, b: 0 })
+        await wrapper.vm.$nextTick()
+        expect(infoInputs(wrapper)[0].element.value).toBe("#000000")
+    })
+
+    it("exposed setColor accepts an rgba() string (bug fix - '#' prefix check used to reject it)", async () => {
+        const wrapper = mount(Colorpicker, { props: { modelValue: "#FF0000" } })
+        wrapper.vm.setColor("rgba(0,255,0,1)")
+        await wrapper.vm.$nextTick()
+        expect(infoInputs(wrapper)[0].element.value).toBe("#00ff00")
+    })
 })

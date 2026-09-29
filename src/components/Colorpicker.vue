@@ -287,10 +287,14 @@ const controlColorStyle = computed<CSSProperties>(() => ({ backgroundColor: cont
 
 function setColor(value: RGBColor | string) {
     if (typeof value === "object" && value !== null) {
-        if (!value.r || !value.g || !value.b) return
+        // 이전엔 falsy 체크(`!value.r`)라 채널값이 0인 색(검정, 또는 r:0인 임의의 색)이
+        // "값 없음"으로 오인되어 무시됐다 - 실수 유효성만 확인한다.
+        if (!Number.isFinite(value.r) || !Number.isFinite(value.g) || !Number.isFinite(value.b)) return
         initColor(formatColor(value, "hex"))
     } else if (typeof value === "string") {
-        if (value.charAt(0) !== "#") return
+        // modelValue 자체가 "hex 또는 rgba() 문자열"을 지원한다고 문서화돼 있는데(위 prop 주석),
+        // 이전엔 "#"로 시작하지 않으면 무조건 무시해서 rgb()/rgba() 문자열이 전부 걸러졌다.
+        if (!/^(#|rgba?\()/.test(value)) return
         initColor(value)
     }
 }
