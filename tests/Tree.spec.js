@@ -129,6 +129,21 @@ describe("Tree", () => {
         wrapper.unmount()
     })
 
+    it("drag=true: mousedown on the root row never starts a drag (bug fix - root's real index is null, same as the 'no drag' sentinel, so dragstart used to fire but dragover/dragend never followed)", async () => {
+        const wrapper = mount(Tree, { props: { root: { title: "root" }, drag: true }, attachTo: document.body })
+        wrapper.vm.append({ title: "a" })
+        await wrapper.vm.$nextTick()
+
+        await wrapper.find("li.root").trigger("mousedown")
+        expect(wrapper.emitted("dragstart")).toBeUndefined()
+
+        await wrapper.findAll("li:not(.root)")[0].trigger("mouseup")
+        expect(wrapper.emitted("dragend")).toBeUndefined()
+        // 드래그가 애초에 시작되지 않았으니 재배치도 없어야 한다
+        expect(wrapper.vm.list()[0].data.title).toBe("a")
+        wrapper.unmount()
+    })
+
     it("drag=true, dragChild=false: dropping directly onto a node does nothing (matches original ui.js)", async () => {
         const wrapper = mount(Tree, {
             props: { root: { title: "root" }, drag: true, dragChild: false },

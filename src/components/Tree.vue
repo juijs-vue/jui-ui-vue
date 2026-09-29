@@ -58,7 +58,8 @@ const emit = defineEmits<{
     /** `foldAll()` 대응 - 페이로드 규칙은 `openall`과 동일(root 전체 접기 / 특정 서브트리 접기). */
     foldall: [node: TreeNodeInternal | TreeNodeInternal[]]
     /** `drag`가 켜진 상태에서 노드 드래그가 시작될 때(mousedown) 발생. 리스너가 세 번째 인자
-     * `control.preventDefault()`를 호출하면 드래그 시작 자체가 취소된다. */
+     * `control.preventDefault()`를 호출하면 드래그 시작 자체가 취소된다. root 노드에서는
+     * mousedown해도 이 이벤트 자체가 발생하지 않는다(root는 이동 대상이 될 수 없다). */
     dragstart: [node: TreeNodeInternal, e: MouseEvent, control: TreeDragControl]
     /** 드래그 중 포인터가 다른 노드 위로 들어갈 때 발생 - 노드 위 직접 드롭 경로(`dragChild
      * !== false`)와 드래그 바를 이용한 형제 재배치 경로(`dragChild === false`) 양쪽 모두에서
@@ -325,7 +326,11 @@ function getRoot() {
 // 있었다(tree_drag.html 예제가 실제로 dragover/dragend에서 file 노드 위로는 못 옮기게
 // false를 리턴함). Vue의 emit은 리스너의 리턴값을 모으지 않으므로, node/e 뒤에 취소용
 // control 객체(preventDefault)를 세 번째 인자로 함께 넘기고 그 결과를 직접 확인한다.
-const dragStart = ref<string | null>(null) // 드래그 시작 노드의 index
+// activeIndex/dragEnd와 같은 이유로 undefined를 "드래그 중 아님" 센티널로 쓴다(root 노드의
+// 실제 index가 null이라 null을 센티널로 쓰면 구별이 안 된다). root 자체는 dragStartNode에서
+// 애초에 드래그 시작 대상에서 제외하므로(dragBarOverNode가 이미 root를 재배치/드롭 대상에서
+// 제외하는 것과 같은 원칙), 여기 값은 항상 실제 문자열 index이거나 undefined다.
+const dragStart = ref<string | undefined>(undefined) // 드래그 시작 노드의 index
 const dragEnd = ref<string | null | undefined>(undefined) // 현재 hover 중인 대상 노드의 index (activeIndex와 동일한 이유로 undefined가 '없음')
 const dragBarRef = ref<{ index: string | null; after: boolean; nest: boolean }>({ index: null, after: false, nest: false }) // dragChild===false 모드에서 형제 재배치(index 앞/뒤) 또는 자식 편입(nest) 대상 - root 제외 모든 노드가 대상
 
@@ -353,12 +358,13 @@ function emitCancelable(
 }
 
 function dragStartNode(node: TreeNodeInternal, e: MouseEvent) {
-    if (dragStart.value != null) return
+    if (dragStart.value !== undefined) return
+    if (node.index == null) return // root는 드래그 시작점이 될 수 없다(재배치 대상에서 root를 빼는 dragBarOverNode와 같은 원칙) - 안 막으면 이 sentinel과 root의 실제 index가 똑같이 구분 불가능해져서 dragstart는 발생해도 dragover/dragend는 전혀 안 오는 불일치가 생긴다
     if (!emitCancelable("dragstart", node, e)) return
     dragStart.value = node.index
 }
 function dragOverNode(node: TreeNodeInternal, e: MouseEvent) {
-    if (dragStart.value == null || dragStart.value === node.index) return
+    if (dragStart.value === undefined || dragStart.value === node.index) return
     if (props.dragChild === false) return
     if (!emitCancelable("dragover", node, e)) return
     dragEnd.value = node.index
@@ -369,8 +375,7 @@ function lastChildSlotIndex(node: TreeNodeInternal): string {
 }
 
 function dragDropOnNode(node: TreeNodeInternal, e: MouseEvent) {
-    if (dragStart.value == null) {
-        dragStart.value = null
+    if (dragStart.value === undefined) {
         dragEnd.value = undefined
         return
     }
@@ -380,13 +385,13 @@ function dragDropOnNode(node: TreeNodeInternal, e: MouseEvent) {
             move(dragStart.value, lastChildSlotIndex(target!))
         }
     }
-    dragStart.value = null
+    dragStart.value = undefined
     dragEnd.value = undefined
 }
 
 function dragBarOverNode(node: TreeNodeInternal, e: MouseEvent) {
     if (props.dragChild !== false) return // 1)번 경로가 열려 있으면 형제 재배치는 관여하지 않는다
-    if (dragStart.value == null || dragStart.value === node.index) return
+    if (dragStart.value === undefined || dragStart.value === node.index) return
     if (node.parent == null) return // 원본도 root는 재배치 대상에서 제외
     // 노드 위 직접 드롭 경로(dragOverNode)와 동일하게 dragover를 쏴서, 리스너가 이 경로에서도
     // 호출되고(취소도 가능하고) 사용할 수 있게 한다 - 예전엔 이 경로만 이벤트 없이 곧바로
@@ -424,9 +429,9 @@ function dragBarDrop(e: MouseEvent) {
     // 노드 위 직접 드롭 경로(dragDropOnNode)와 동일하게 dragend를 쏴서(취소 가능), 이 경로도
     // 일관되게 리스너를 호출한다 - 예전엔 이 경로만 이벤트 없이 곧바로 move()를 호출했다(이
     // 파일 자신의 emits 타입 주석에도 그렇게 적혀 있었음 - 그 주석도 이 수정에 맞춰 갱신함).
-    if (dragStart.value != null && index != null && index !== dragStart.value) {
+    if (dragStart.value !== undefined && index != null && index !== dragStart.value) {
         if (!emitCancelable("dragend", get(index), e)) {
-            dragStart.value = null
+            dragStart.value = undefined
             dragBarRef.value = { index: null, after: false, nest: false }
             return
         }
@@ -436,7 +441,7 @@ function dragBarDrop(e: MouseEvent) {
             move(dragStart.value, after ? keyParser.getNextIndex(index) : index)
         }
     }
-    dragStart.value = null
+    dragStart.value = undefined
     dragBarRef.value = { index: null, after: false, nest: false }
 }
 
