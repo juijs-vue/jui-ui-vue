@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue"
+import { computed, ref } from "vue"
 
 const props = withDefaults(
     defineProps<{
@@ -64,8 +64,10 @@ function setValue(v: number) {
  */
 const localStriped = ref(props.striped)
 const localAnimated = ref(props.animated)
-watch(() => props.striped, (v) => { localStriped.value = v })
-watch(() => props.animated, (v) => { localAnimated.value = v })
+// prop을 계속 미러링하는 watch를 두면 "prop과 무관하게 override 가능"이라는 위 문서 계약이
+// 깨진다 - setStriped(true)로 override한 뒤 어떤 이유로든 striped prop이 바뀌면 그 watch가
+// override를 조용히 되돌려버렸다. 재동기화는 setStriped()/setAnimated()를 인자 없이
+// 호출하는 것으로만 이뤄진다(원본과 동일).
 
 function setStriped(isStriped?: boolean) {
     localStriped.value = isStriped === undefined ? props.striped : isStriped

@@ -76,4 +76,21 @@ describe("Progress", () => {
         expect(wrapper.find(".bar").classes()).toContain("striped")
         expect(wrapper.find(".bar").classes()).toContain("animated")
     })
+
+    // striped/animated는 "초기값일 뿐, setStriped/setAnimated로 prop과 무관하게 override 가능"이라고
+    // 문서화돼 있는데, 이전엔 props.striped/animated를 계속 watch해서 로컬 상태에 미러링했다 -
+    // override 이후 prop이 어떤 이유로든 바뀌면 그 override가 조용히 되돌아가버리는 버그였다.
+    it("an override from setStriped() survives an unrelated later change to the striped prop (bug fix)", async () => {
+        const wrapper = mount(Progress, { props: { modelValue: 0, striped: false } })
+        wrapper.vm.setStriped(true) // override: prop(false)과 다른 값
+        await wrapper.vm.$nextTick()
+        expect(wrapper.find(".bar").classes()).toContain("striped")
+
+        // prop이 실제로 값을 바꾼다(false -> true -> false) - 이전엔 이 변화를 계속 watch해서
+        // 그때마다 override를 조용히 덮어썼다. 두 번째 변경(false)은 override(true)와 다른
+        // 값이라, 남아있는 watch가 있었다면 여기서 바로 드러난다.
+        await wrapper.setProps({ striped: true })
+        await wrapper.setProps({ striped: false })
+        expect(wrapper.find(".bar").classes()).toContain("striped")
+    })
 })
