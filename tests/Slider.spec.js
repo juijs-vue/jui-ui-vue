@@ -114,4 +114,17 @@ describe("Slider", () => {
         expect(wrapper.emitted("change")).toBeDefined()
         wrapper.unmount()
     })
+
+    it("switching type from single to double does not emit NaN for 'to' (bug fix - toDist was never initialized while in single mode)", async () => {
+        const wrapper = mount(Slider, { props: { type: "single", min: 0, max: 10, from: 5, to: 8 } })
+        await wrapper.vm.$nextTick()
+
+        await wrapper.setProps({ type: "double" })
+        await wrapper.vm.$nextTick()
+
+        expect(wrapper.vm.getToValue()).not.toBeNaN()
+        expect(wrapper.vm.getToValue()).toBe(8)
+        const lastTo = wrapper.emitted("update:to")?.at(-1)
+        if (lastTo) expect(lastTo[0]).not.toBeNaN()
+    })
 })

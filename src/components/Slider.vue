@@ -223,7 +223,12 @@ function getFromValue() {
     return distToValue(fromDist.value / 100)
 }
 function getToValue() {
-    return isDouble.value ? distToValue(toDist.value / 100) : getFromValue()
+    if (!isDouble.value) return getFromValue()
+    // type이 "single"로 시작하면 setToValue()가 매번 조기 리턴해서 toDist가 초기값 NaN인 채로
+    // 남는다 - 이후 type이 "double"로 바뀌면(아래 watch) 이 함수가 distToValue(NaN)=NaN을
+    // 반환해서 update:to/change가 NaN으로 발생하고 to 핸들 위치도 깨졌다. 그 시점엔 아직 실제
+    // 드래그/setToValue로 값이 잡힌 적이 없다는 뜻이므로 props.to로 시작한다.
+    return Number.isNaN(toDist.value) ? props.to : distToValue(toDist.value / 100)
 }
 function setFromValue(value?: number, suppressChange?: boolean) {
     const from = value !== undefined ? value : props.from
